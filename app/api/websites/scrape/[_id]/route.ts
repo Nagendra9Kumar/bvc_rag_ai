@@ -27,7 +27,7 @@ async function createEmbeddings(websiteId: string, userId: string, content: stri
       const chunk = textChunks[i]
       // Convert chunk to embedding
       const embeddingVector = await getEmbedding(chunk)
-      console.log(`Embedding for chunk ${i}:`, embeddingVector)
+      console.log(`Embedding for chunk ${i}:`)
       vectors.push({
         id: `${websiteId}-chunk-${i}`,
         values: embeddingVector,
@@ -171,8 +171,8 @@ export async function POST(
 async function processWebsiteAsync(db: any, website: any, _id: string, userId: string) {
   try {
     // Scrape the website
-    const scrapedData = await scrapeWebsite(website.url);
-    console.log(`Scraped data for ${website.url}:`, scrapedData);
+    const scrapedData = await scrapeWebsite(website.url)
+    console.log(`Scraped data for ${website.url}:`);
     // Store scraped content in MongoDB
     const contentCollection = db.collection('website_contents')
     await contentCollection.updateOne(

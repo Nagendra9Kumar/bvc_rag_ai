@@ -7,10 +7,22 @@ import { ObjectId } from 'mongodb'
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth()
+    // Check if we're in development mode
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    let userId: string | null = null
     
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Only verify authentication in production or when DEV_AUTH_BYPASS is not set
+    if (!isDevelopment || process.env.DEV_AUTH_BYPASS !== 'true') {
+      const authResult = await auth()
+      userId = authResult.userId
+      
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+    } else {
+      // In development with bypass enabled, use a placeholder userId
+      userId = 'dev-user-id'
+      console.log('⚠️ Authentication bypassed in development mode')
     }
     
     const { query, topK = 5 } = await req.json()
