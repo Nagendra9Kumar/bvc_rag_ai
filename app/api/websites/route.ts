@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     // Create new website entry
     const website: Website = {
       url,
-      status: 'unkown',
+      status: 'pending',
       createdAt: new Date(),
       updatedAt: new Date(),
       createdBy: userId

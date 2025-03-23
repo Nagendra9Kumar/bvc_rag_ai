@@ -4,33 +4,51 @@ import clientPromise from '@/lib/mongodb'
 import { pineconeIndex } from '@/lib/pinecone'
 import { getEmbedding } from '@/lib/huggingface'
 import { ObjectId } from 'mongodb'
+import { corsHeaders } from '@/lib/cors'
+import { rateLimit } from '@/lib/rate-limit'
+
+// Configure rate limiting: 60 requests per minute
+const limiter = rateLimit({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 minute
+});
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { headers: corsHeaders(request) });
+}
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if we're in development mode
-    const isDevelopment = process.env.NODE_ENV === 'development'
-    let userId: string | null = null
-    
-    // Only verify authentication in production or when DEV_AUTH_BYPASS is not set
-    if (!isDevelopment || process.env.DEV_AUTH_BYPASS !== 'true') {
-      const authResult = await auth()
-      userId = authResult.userId
-      
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    } else {
-      // In development with bypass enabled, use a placeholder userId
-      userId = 'dev-user-id'
-      console.log('⚠️ Authentication bypassed in development mode')
+    // Check rate limit
+    const rateLimitResult = await limiter(req);
+    if (rateLimitResult) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { 
+          status: 429,
+          headers: {
+            ...corsHeaders(req),
+            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+          }
+        }
+      );
     }
+
+    const { userId } = await auth()
     
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' }, 
+        { status: 401, headers: corsHeaders(req) }
+      )
+    }
+
     const { query, topK = 5 } = await req.json()
     
     if (!query) {
       return NextResponse.json(
         { error: 'Query is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders(req) }
       )
     }
     
@@ -42,7 +60,7 @@ export async function POST(req: NextRequest) {
       console.error('Embedding Error:', error)
       return NextResponse.json(
         { error: 'Failed to generate embedding' },
-        { status: 500 }
+        { status: 500, headers: corsHeaders(req) }
       )
     }
     
@@ -79,12 +97,12 @@ export async function POST(req: NextRequest) {
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt
       }))
-    })
+    }, { headers: corsHeaders(req) })
   } catch (error) {
     console.error(error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders(req) }
     )
   }
 }

@@ -23,12 +23,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { WebsiteStatus, WebsiteStatusDetails } from "@/lib/models/website";
 
 interface Website {
   _id: string;
   url: string;
   lastScraped: Date | null;
-  status: "active" | "pending" | "error" | "unknown";
+  status: WebsiteStatus;
+  statusDetails?: WebsiteStatusDetails;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -216,7 +220,46 @@ export function WebsiteList() {
     }
   };
 
- 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+      case 'scraping':
+      case 'processing':
+      case 'embedding':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'error':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusDetails = (website: any) => {
+    if (!website.statusDetails) return null;
+
+    const details = [];
+    
+    if (website.statusDetails.currentAttempt) {
+      details.push(`Attempt ${website.statusDetails.currentAttempt}/${website.statusDetails.maxAttempts}`);
+    }
+    
+    if (website.statusDetails.statusCode) {
+      details.push(`Status Code: ${website.statusDetails.statusCode}`);
+    }
+    
+    if (website.statusDetails.progress) {
+      const { phase, current, total } = website.statusDetails.progress;
+      details.push(`${phase.charAt(0).toUpperCase() + phase.slice(1)}: ${current}/${total}`);
+    }
+    
+    if (website.statusDetails.lastError) {
+      details.push(`Error: ${website.statusDetails.lastError}`);
+    }
+    
+    return details.length > 0 ? details : null;
+  };
 
   if (loading && websites.length === 0) {
     return <div className="flex justify-center p-4">Loading websites...</div>;
@@ -258,17 +301,41 @@ export function WebsiteList() {
                 </a>
               </TableCell>
               <TableCell>
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    website.status === "active"
-                      ? "bg-green-100 text-green-800"
-                      : website.status === "pending"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {website.status || "unknown"}
-                </span>
+                <HoverCard>
+                  <HoverCardTrigger>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                        website.status
+                      )}`}
+                    >
+                      {website.status || "unknown"}
+                    </span>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-80">
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold">Status Details</h4>
+                      {website.statusDetails?.progress && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span>{website.statusDetails.progress.phase}</span>
+                            <span>{Math.round((website.statusDetails.progress.current / website.statusDetails.progress.total) * 100)}%</span>
+                          </div>
+                          <Progress 
+                            value={(website.statusDetails.progress.current / website.statusDetails.progress.total) * 100} 
+                          />
+                        </div>
+                      )}
+                      {getStatusDetails(website)?.map((detail, i) => (
+                        <p key={i} className="text-sm">{detail}</p>
+                      ))}
+                      <p className="text-xs text-gray-500">
+                        Last updated: {website.statusDetails?.lastUpdate 
+                          ? new Date(website.statusDetails.lastUpdate).toLocaleString()
+                          : 'Never'}
+                      </p>
+                    </div>
+                  </HoverCardContent>
+                </HoverCard>
               </TableCell>
               <TableCell>
                 {website.lastScraped

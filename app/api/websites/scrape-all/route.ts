@@ -4,6 +4,62 @@ import { auth } from "@clerk/nextjs/server";
 import { ObjectId } from "mongodb";
 import { pineconeIndex } from "@/lib/pinecone";
 
+// Rate limiting configuration
+const CONCURRENT_SCRAPES = 3; // Number of concurrent scrapes
+const DELAY_BETWEEN_BATCHES = 5000; // 5 seconds between batches
+
+// Helper function to process websites in batches with rate limiting
+async function processBatch(websites: any[], baseUrl: string, authHeader: string) {
+  const results = [];
+  
+  // Process websites in batches
+  for (let i = 0; i < websites.length; i += CONCURRENT_SCRAPES) {
+    const batch = websites.slice(i, i + CONCURRENT_SCRAPES);
+    console.log(`Processing batch ${i / CONCURRENT_SCRAPES + 1}, size: ${batch.length}`);
+    
+    // Process current batch concurrently
+    const batchResults = await Promise.all(
+      batch.map(async (website) => {
+        try {
+          const websiteId = website._id.toString();
+          const scrapeUrl = `${baseUrl}/api/websites/scrape/${websiteId}`;
+          console.log(`Triggering scrape at: ${scrapeUrl}`);
+          
+          const scrapeResponse = await fetch(scrapeUrl, {
+            method: "POST",
+            headers: {
+              Authorization: authHeader,
+            },
+          });
+          
+          if (!scrapeResponse.ok) {
+            throw new Error(`Failed to trigger scrape: ${await scrapeResponse.text()}`);
+          }
+          
+          return { id: websiteId, success: true };
+        } catch (error) {
+          console.error(`Error processing website ${website._id}:`, error);
+          return { 
+            id: website._id.toString(), 
+            success: false, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          };
+        }
+      })
+    );
+    
+    results.push(...batchResults);
+    
+    // If there are more websites to process, wait before next batch
+    if (i + CONCURRENT_SCRAPES < websites.length) {
+      console.log(`Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+    }
+  }
+  
+  return results;
+}
+
 export async function POST(request: Request) {
   try {
     // Get the current user ID to filter websites
@@ -21,7 +77,6 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
     // First, delete all existing content for this user
-    // (instead of making an HTTP call to /api/websites/chunks/all)
     const mongoResult = await db.collection("website_contents").deleteMany({
       createdBy: userId,
     });
@@ -29,7 +84,6 @@ export async function POST(request: Request) {
     
     // Delete all vectors from Pinecone
     try {
-      // Use namespace if you're using it to separate user data
       await pineconeIndex.deleteAll();
       console.log("Deleted all vectors from Pinecone successfully.");
     } catch (pineconeError) {
@@ -48,53 +102,15 @@ export async function POST(request: Request) {
       }
     );
 
-    // Now process each website individually
-    const processingPromises = websites.map(async (website) => {
-      try {
-        const websiteId = website._id.toString();
-        
-        // Trigger scraping via API (still need this since it's a long-running process)
-        const scrapeUrl = `${baseUrl}/api/websites/scrape/${websiteId}`;
-        console.log(`Triggering scrape at: ${scrapeUrl}`);
+    // Process websites with rate limiting
+    const authHeader = request.headers.get("Authorization") || "";
+    const results = await processBatch(websites, baseUrl, authHeader);
 
-        // Include the auth header from the original request
-        const authHeader = request.headers.get("Authorization") || "";
-        const scrapeResponse = await fetch(scrapeUrl, {
-          method: "POST",
-          headers: {
-            Authorization: authHeader,
-          },
-        });
-        
-        if (!scrapeResponse.ok) {
-          throw new Error(`Failed to trigger scrape: ${await scrapeResponse.text()}`);
-        }
-
-        return { id: websiteId, success: true };
-      } catch (error) {
-        console.error(`Error processing website ${website._id}:`, error);
-        await websitesCollection.updateOne(
-          { _id: website._id },
-          {
-            $set: {
-              status: "error",
-              errorMessage: error instanceof Error ? error.message : "Unknown error",
-            },
-          }
-        );
-        return { 
-          id: website._id.toString(), 
-          success: false, 
-          error: error instanceof Error ? error.message : "Unknown error" 
-        };
-      }
-    });
-
-    const results = await Promise.all(processingPromises);
     return NextResponse.json({ 
       message: "Scraping process initiated", 
       results,
-      deletedCount: mongoResult.deletedCount 
+      deletedCount: mongoResult.deletedCount,
+      totalWebsites: websites.length
     });
   } catch (error: any) {
     console.error("Error in scraping-all route:", error);

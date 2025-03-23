@@ -5,6 +5,7 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1", // OpenRouter API endpoint
 });
 
+
 export const generateText = async (
   systemPrompt: string,
   userPrompt: string,
@@ -33,3 +34,22 @@ export const generateText = async (
     return "Error generating response.";
   }
 };
+
+export const getEmbedding = async (text: string): Promise<number[]> => {
+    try {
+        const response = await openai.embeddings.create({
+        model: "anthropic/claude-3-haiku",
+        input: text,
+        });
+    
+        if (!response || !response.data?.[0]?.embedding) {
+        throw new Error("Invalid response from OpenRouter API");
+        }
+        console.log("Generated embedding:", response.data[0].embedding);
+        return response.data[0].embedding;
+
+    } catch (error) {
+        console.error("Embedding generation error:", error);
+        throw error;
+    }
+    }
