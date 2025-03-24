@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { pineconeIndex } from "@/lib/pinecone";
-import { getEmbedding } from '@/lib/huggingface'
+import { getEmbedding } from '@/lib/huggingface';
 import { generateText } from "@/lib/openrouter";
 
 export async function POST(req: NextRequest) {

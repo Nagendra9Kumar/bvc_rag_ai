@@ -38,7 +38,7 @@ export const generateText = async (
 export const getEmbedding = async (text: string): Promise<number[]> => {
     try {
         const response = await openai.embeddings.create({
-        model: "deepseek/deepseek-r1-distill-llama-70b:free",
+        model: "google/gemma-3-27b-it:free",
         input: text,
         });
     

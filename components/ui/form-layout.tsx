@@ -1,12 +1,13 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, HTMLMotionProps } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
-interface FormLayoutProps extends React.ComponentProps<'div'> {
+interface FormLayoutProps extends Omit<HTMLMotionProps<'div'>, 'title' | 'children'> {
   title?: string
   description?: string
   footer?: React.ReactNode
+  children?: React.ReactNode
 }
 
 export function FormLayout({

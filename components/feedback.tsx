@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
+import { cn } from '@/lib/utils'
 
 interface FeedbackProps {
   questionId: string

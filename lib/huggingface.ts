@@ -1,5 +1,6 @@
 import { HfInference } from "@huggingface/inference";
 
+
 if (!process.env.HUGGING_FACE_API_KEY) {
   throw new Error("Missing Hugging Face API key");
 }
