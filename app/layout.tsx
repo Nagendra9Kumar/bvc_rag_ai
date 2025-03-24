@@ -4,7 +4,12 @@ import { Toaster } from '@/components/ui/toaster'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+// Use Inter as the default font
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
 
 export const metadata = {
   title: 'BVC Engineering College - Knowledge Base',
@@ -17,16 +22,21 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider  >
-      <html lang="en" suppressHydrationWarning>
-        <body className={inter.className}>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning className={inter.variable}>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        </head>
+        <body className={`font-sans antialiased min-h-screen bg-background`}>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
-            {children}
+            <div className="relative flex min-h-screen flex-col">
+              {children}
+            </div>
             <Toaster />
           </ThemeProvider>
         </body>

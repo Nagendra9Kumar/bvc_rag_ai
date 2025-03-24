@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Save, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
@@ -14,116 +15,145 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
+import { Label } from '@/components/ui/label'
+
+const categories = [
+  'Academic Programs',
+  'Admissions',
+  'Faculty',
+  'Research',
+  'Campus Life',
+  'Infrastructure',
+  'Placements',
+  'Events',
+  'Other'
+]
 
 export function DocumentForm() {
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [category, setCategory] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    category: '',
+  })
+  const router = useRouter()
   const { toast } = useToast()
-  
-  const handleSubmit = async () => {
-    if (!title || !content || !category) {
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.title || !formData.content || !formData.category) {
       toast({
-        title: 'Missing fields',
-        description: 'Please fill in all required fields',
+        title: 'Validation Error',
+        description: 'Please fill in all fields',
         variant: 'destructive',
       })
       return
     }
-    
-    setIsSubmitting(true)
-    
+
+    setIsLoading(true)
     try {
-      const response = await fetch('/api/store', {
+      const response = await fetch('/api/documents', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          content,
-          category,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       })
-      
-      if (!response.ok) {
-        throw new Error('Failed to store document')
-      }
-      
+
+      if (!response.ok) throw new Error('Failed to create document')
+
       toast({
-        title: 'Document stored',
-        description: 'Your document has been stored and indexed successfully',
+        title: 'Success',
+        description: 'Document created successfully',
       })
-      
-      setTitle('')
-      setContent('')
-      setCategory('')
+
+      router.refresh()
+      setFormData({ title: '', content: '', category: '' })
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to store document',
+        description: 'Failed to create document',
         variant: 'destructive',
       })
     } finally {
-      setIsSubmitting(false)
+      setIsLoading(false)
     }
   }
-  
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">Document Title</Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter document title"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="category">Category</Label>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger id="category">
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="academic">Academic</SelectItem>
-            <SelectItem value="admission">Admission</SelectItem>
-            <SelectItem value="faculty">Faculty</SelectItem>
-            <SelectItem value="infrastructure">Infrastructure</SelectItem>
-            <SelectItem value="events">Events</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="content">Content</Label>
-        <Textarea
-          id="content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Enter document content"
-          className="min-h-32"
-        />
-      </div>
-      <Button
-        onClick={handleSubmit}
-        disabled={!title || !content || !category || isSubmitting}
-        className="w-full"
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="grid gap-4"
       >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Saving
-          </>
-        ) : (
-          <>
-            <Save className="mr-2 h-4 w-4" />
-            Save Document
-          </>
-        )}
-      </Button>
-    </div>
+        <div className="grid gap-2">
+          <Label htmlFor="title">Title</Label>
+          <Input
+            id="title"
+            placeholder="Enter document title"
+            value={formData.title}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, title: e.target.value }))
+            }
+            className="resize-none"
+          />
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="category">Category</Label>
+          <Select
+            value={formData.category}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, category: value }))
+            }
+          >
+            <SelectTrigger id="category">
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="content">Content</Label>
+          <Textarea
+            id="content"
+            placeholder="Enter document content"
+            value={formData.content}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, content: e.target.value }))
+            }
+            className="min-h-[200px] resize-none"
+          />
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            'Create Document'
+          )}
+        </Button>
+      </motion.div>
+    </form>
   )
 }

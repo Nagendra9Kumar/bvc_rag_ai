@@ -1,7 +1,11 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+'use client'
+
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import {
   Table,
   TableBody,
@@ -9,9 +13,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { toast } from "@/components/ui/use-toast";
-import { Trash2, RefreshCw, ExternalLink } from "lucide-react";
+} from '@/components/ui/table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,395 +24,374 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Progress } from "@/components/ui/progress";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { WebsiteStatus, WebsiteStatusDetails } from "@/lib/models/website";
+} from '@/components/ui/alert-dialog'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
+import { useToast } from '@/components/ui/use-toast'
+import { Search, RefreshCw, ExternalLink, Trash2, AlertCircle, RotateCw } from 'lucide-react'
 
 interface Website {
-  _id: string;
-  url: string;
-  lastScraped: Date | null;
-  status: WebsiteStatus;
-  statusDetails?: WebsiteStatusDetails;
-  createdAt: Date;
-  updatedAt: Date;
+  _id: string
+  url: string
+  status: string
+  statusDetails?: {
+    progress?: {
+      current: number
+      total: number
+      phase: string
+    }
+  }
+  lastScraped?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export function WebsiteList() {
-  const [websites, setWebsites] = useState<Website[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  const fetchWebsites = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/websites");
-
-      if (!response.ok) {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to fetch websites");
-        } else {
-          const errorText = await response.text();
-          throw new Error(errorText || "Failed to fetch websites");
-        }
-      }
-
-      const data = await response.json();
-      setWebsites(data);
-    } catch (error) {
-      console.error("Error fetching websites:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to load websites",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [websites, setWebsites] = useState<Website[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [scrapingWebsites, setScrapingWebsites] = useState<Set<string>>(new Set())
+  const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
-    fetchWebsites();
+    fetchWebsites()
+  }, [])
 
-    // Set up auto-refresh interval (every 30 seconds)
-    const interval_id = setInterval(fetchWebsites, 30000);
-
-    // Clean up interval on unmount
-    return () => clearInterval(interval_id);
-  }, []);
-
-  const triggerScrape = async (_id: string) => {
+  const fetchWebsites = async () => {
     try {
-      const response = await fetch(`/api/websites/scrape/${_id}`, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to initiate scraping");
-        } else {
-          const errorText = await response.text();
-          throw new Error(errorText || "Failed to initiate scraping");
-        }
-      }
-
-      toast({
-        title: "Success",
-        description: "Website scraping initiated",
-      });
-      fetchWebsites();
+      const response = await fetch('/api/websites')
+      if (!response.ok) throw new Error('Failed to fetch websites')
+      const data = await response.json()
+      setWebsites(data)
     } catch (error) {
       toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to initiate scraping",
-        variant: "destructive",
-      });
+        title: 'Error',
+        description: 'Failed to fetch websites',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
 
-  const deleteWebsite = async (_id: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/websites/${_id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to delete website");
-        } else {
-          const errorText = await response.text();
-          throw new Error(errorText || "Failed to delete website");
-        }
-      }
-
-      // Delete associated chunks in Pinecone and MongoDB
-      await fetch(`/api/websites/chunks/${_id}`, {
-        method: "DELETE",
-      });
-
+      const response = await fetch(`/api/websites/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error('Failed to delete website')
+      
+      setWebsites(prev => prev.filter(site => site._id !== id))
       toast({
-        title: "Success",
-        description: "Website and its chunks deleted successfully",
-      });
-      fetchWebsites();
+        title: 'Success',
+        description: 'Website deleted successfully',
+      })
     } catch (error) {
       toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete website",
-        variant: "destructive",
-      });
+        title: 'Error',
+        description: 'Failed to delete website',
+        variant: 'destructive',
+      })
     }
-  };
+  }
 
-  const scrapeAllWebsites = async () => {
+  const handleDeleteAll = async () => {
     try {
-      // First, confirm with the user
-      if (!confirm("This will delete ALL existing scraped data and re-scrape all websites. Continue?")) {
-        return;
-      }
-
+      const response = await fetch('/api/websites/delete-all', {
+        method: 'POST',
+      })
+      if (!response.ok) throw new Error('Failed to delete websites')
+      
+      const data = await response.json()
+      setWebsites([])
       toast({
-        title: "Processing",
-        description: "Deleting existing data and initiating scraping for all websites...",
-      });
-
-      // 1. Delete all vectors from Pinecone first
-      const deleteAllResponse = await fetch(`/api/websites/chunks/all`, {
-        method: "DELETE",
-      });
-
-      if (!deleteAllResponse.ok) {
-        const contentType = deleteAllResponse.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await deleteAllResponse.json();
-          throw new Error(errorData.error || "Failed to delete existing data");
-        } else {
-          const errorText = await deleteAllResponse.text();
-          throw new Error(errorText || "Failed to delete existing data");
-        }
-      }
-
-      // 2. Then initiate the scrape-all process
-      const response = await fetch(`/api/websites/scrape-all`, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to scrape all websites");
-        } else {
-          const errorText = await response.text();
-          throw new Error(errorText || "Failed to scrape all websites");
-        }
-      }
-
-      const result = await response.json();
-
+        title: 'Success',
+        description: `Successfully deleted ${data.summary.deletedWebsites} websites`,
+      })
+      
+      fetchWebsites()
+    } catch (error) {
       toast({
-        title: "Success",
-        description: `Processing ${result.count || 'all'} websites for scraping. This may take some time.`,
+        title: 'Error',
+        description: 'Failed to delete websites',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleScrapeWebsite = async (id: string) => {
+    if (scrapingWebsites.has(id)) return;
+    
+    try {
+      setScrapingWebsites(prev => {
+        const next = new Set(Array.from(prev));
+        next.add(id);
+        return next;
+      });
+      const response = await fetch(`/api/websites/scrape/${id}`, {
+        method: 'POST',
       });
       
-      fetchWebsites();
+      if (!response.ok) {
+        throw new Error('Failed to start scraping');
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'Started scraping website',
+      });
+      
+      // Update the website status immediately
+      setWebsites(prev => prev.map(site => 
+        site._id === id 
+          ? { ...site, status: 'pending', statusDetails: { progress: { current: 0, total: 100, phase: 'starting' } } }
+          : site
+      ));
+      
+      // Fetch updated status after a short delay
+      setTimeout(fetchWebsites, 2000);
     } catch (error) {
       toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to scrape all websites",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to start scraping',
+        variant: 'destructive',
+      });
+    } finally {
+      setScrapingWebsites(prev => {
+        const next = new Set(Array.from(prev));
+        next.delete(id);
+        return next;
       });
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-      case 'scraping':
-      case 'processing':
-      case 'embedding':
-        return 'bg-yellow-100 text-yellow-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
       case 'error':
-        return 'bg-red-100 text-red-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+      case 'scraping':
+      case 'embedding':
+      case 'processing':
+      case 'pending':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
     }
-  };
+  }
 
-  const getStatusDetails = (website: any) => {
-    if (!website.statusDetails) return null;
-
-    const details = [];
+  const getStatusDetails = (website: Website) => {
+    if (!website.statusDetails) return []
     
-    if (website.statusDetails.currentAttempt) {
-      details.push(`Attempt ${website.statusDetails.currentAttempt}/${website.statusDetails.maxAttempts}`);
-    }
-    
-    if (website.statusDetails.statusCode) {
-      details.push(`Status Code: ${website.statusDetails.statusCode}`);
-    }
-    
+    const details: string[] = []
     if (website.statusDetails.progress) {
-      const { phase, current, total } = website.statusDetails.progress;
-      details.push(`${phase.charAt(0).toUpperCase() + phase.slice(1)}: ${current}/${total}`);
+      details.push(
+        `Progress: ${website.statusDetails.progress.current}/${website.statusDetails.progress.total} (${website.statusDetails.progress.phase})`
+      )
     }
-    
-    if (website.statusDetails.lastError) {
-      details.push(`Error: ${website.statusDetails.lastError}`);
+    if (website.lastScraped) {
+      details.push(`Last scraped: ${new Date(website.lastScraped).toLocaleString()}`)
     }
-    
-    return details.length > 0 ? details : null;
-  };
-
-  if (loading && websites.length === 0) {
-    return <div className="flex justify-center p-4">Loading websites...</div>;
+    return details
   }
 
-  if (!loading && websites.length === 0) {
-    return (
-      <div className="text-center py-6">
-        No websites added yet. Add your first website above.
-      </div>
-    );
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
   }
+
+  const filteredWebsites = websites.filter(site =>
+    site.url.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div className="space-y-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>URL</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Last Scraped</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {websites.map((website, index) => (
-            <TableRow key={website._id || `website-${index}`}>
-              <TableCell>
-                <a
-                  href={website.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center text-blue-500 hover:underline"
-                >
-                  {website.url && website.url.length > 30
-                    ? website.url.substring(0, 30) + "..."
-                    : website.url || "N/A"}
-                  <ExternalLink className="ml-1 h-4 w-4" />
-                </a>
-              </TableCell>
-              <TableCell>
-                <HoverCard>
-                  <HoverCardTrigger>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        website.status
-                      )}`}
-                    >
-                      {website.status || "unknown"}
-                    </span>
-                  </HoverCardTrigger>
-                  <HoverCardContent className="w-80">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-semibold">Status Details</h4>
-                      {website.statusDetails?.progress && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span>{website.statusDetails.progress.phase}</span>
-                            <span>{Math.round((website.statusDetails.progress.current / website.statusDetails.progress.total) * 100)}%</span>
-                          </div>
-                          <Progress 
-                            value={(website.statusDetails.progress.current / website.statusDetails.progress.total) * 100} 
-                          />
-                        </div>
-                      )}
-                      {getStatusDetails(website)?.map((detail, i) => (
-                        <p key={i} className="text-sm">{detail}</p>
-                      ))}
-                      <p className="text-xs text-gray-500">
-                        Last updated: {website.statusDetails?.lastUpdate 
-                          ? new Date(website.statusDetails.lastUpdate).toLocaleString()
-                          : 'Never'}
-                      </p>
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
-              </TableCell>
-              <TableCell>
-                {website.lastScraped
-                  ? new Date(website.lastScraped).toLocaleString()
-                  : "Never"}
-              </TableCell>
-              <TableCell className="text-right space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    website.status === "active"
-                      ? toast({
-                          title: "Info",
-                          description: "This website is already active.",
-                        })
-                      : triggerScrape(website._id)
-                  }
-                  disabled={website.status === "pending"}
-                  title={
-                    website.status === "active"
-                      ? "Website is active"
-                      : "Scrape website"
-                  }
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-                
-                {/* Add the new Delete & Scrape button */}
-               
-                
-                {/* Existing delete button */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700"
-                      title="Delete website"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will delete the website and all its scraped data.
-                        This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteWebsite(website._id)}
-                        className="bg-red-500 hover:bg-red-700"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="flex justify-end space-x-2">
-        <Button onClick={fetchWebsites} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+      <div className="flex items-center gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search websites..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button 
+          onClick={fetchWebsites} 
+          variant="outline" 
+          size="sm"
+          disabled={isLoading}
+          className="flex items-center gap-2 transition-all duration-500 ease-in-out active:scale-95"
+        >
+          <RefreshCw className={`h-4 w-4 transition-all duration-500 ${isLoading ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
         </Button>
-        <Button onClick={scrapeAllWebsites} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" /> Scrape All
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive">Delete All</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete All Websites</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete all websites? This will remove all website data and cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAll}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
+
+      {filteredWebsites.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center justify-center py-12 text-center"
+        >
+          <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
+          <h3 className="mt-4 text-lg font-semibold">No websites found</h3>
+          <p className="text-muted-foreground">
+            {searchQuery ? 'Try different search terms' : 'Start by adding some websites'}
+          </p>
+        </motion.div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>URL</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Last Updated</TableHead>
+                <TableHead className="w-[140px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <AnimatePresence>
+                {filteredWebsites.map((website) => (
+                  <motion.tr
+                    key={website._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="group"
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={website.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 hover:underline"
+                        >
+                          {website.url}
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <HoverCard>
+                        <HoverCardTrigger>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(website.status)}`}>
+                            {website.status || "unknown"}
+                          </span>
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-80">
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-semibold">Status Details</h4>
+                            {website.statusDetails?.progress && (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span>{website.statusDetails.progress.phase}</span>
+                                  <span>
+                                    {Math.round((website.statusDetails.progress.current / website.statusDetails.progress.total) * 100)}%
+                                  </span>
+                                </div>
+                                <Progress 
+                                  value={(website.statusDetails.progress.current / website.statusDetails.progress.total) * 100} 
+                                />
+                              </div>
+                            )}
+                            {getStatusDetails(website).map((detail, i) => (
+                              <p key={i} className="text-sm text-muted-foreground">{detail}</p>
+                            ))}
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(website.updatedAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleScrapeWebsite(website._id)}
+                          disabled={scrapingWebsites.has(website._id) || ['scraping', 'embedding', 'processing', 'pending'].includes(website.status?.toLowerCase())}
+                          className="relative transition-all duration-200 hover:rotate-180"
+                        >
+                          <RotateCw className={`h-4 w-4 ${scrapingWebsites.has(website._id) ? 'animate-spin' : ''}`} />
+                          <span className="sr-only">Scrape</span>
+                          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                            Scrape
+                          </span>
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="relative transition-all duration-200 hover:bg-destructive hover:text-destructive-foreground"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete</span>
+                              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                                Delete
+                              </span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Website</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this website? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(website._id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
-  );
+  )
 }

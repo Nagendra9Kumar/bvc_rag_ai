@@ -1,130 +1,66 @@
-"use client";
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Button } from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { toast } from "@/components/ui/use-toast"
-
-const websiteSchema = z.object({
-  url: z
-    .string()
-    .min(1, "URL is required")
-    .url("Please enter a valid URL")
-    .refine((url) => url.startsWith("http://") || url.startsWith("https://"), {
-      message: "URL must start with http:// or https://",
-    }),
-})
-
-type WebsiteFormValues = z.infer<typeof websiteSchema>
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { Globe, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useToast } from '@/components/ui/use-toast'
+import { Card, CardContent } from '@/components/ui/card'
 
 export function WebsiteForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [url, setUrl] = useState('')
   const router = useRouter()
+  const { toast } = useToast()
 
-  const form = useForm<WebsiteFormValues>({
-    resolver: zodResolver(websiteSchema),
-    defaultValues: {
-      url: "",
-    },
-  })
-  
-  async function onSubmit(data: WebsiteFormValues) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!url.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid URL',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Basic URL validation
+    try {
+      new URL(url)
+    } catch {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid URL with http:// or https://',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // Derive a name from the URL (e.g., extract domain name)
-      const url = new URL(data.url);
-      const hostnameParts = url.hostname.split('.');
-      // Use the domain name without TLD as the website name
-      const name = hostnameParts.length >= 2 ? 
-        hostnameParts[hostnameParts.length - 2].charAt(0).toUpperCase() + 
-        hostnameParts[hostnameParts.length - 2].slice(1) : 
-        url.hostname;
-  
-      const response = await fetch("/api/websites", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // Include the derived name in the request
-        body: JSON.stringify({
-          url: data.url
-        }),
+      const response = await fetch('/api/websites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
       })
-  
-      if (!response.ok) {
-        // Check for duplicate URL (typically returns 409 Conflict)
-        if (response.status === 409) {
-          toast({
-            title: "Website Already Exists",
-            description: "This website URL already exists",
-            variant: "default",
-          });
-          return;
-        }
-        
-        // Check the content type before trying to parse as JSON
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          // Check if error message contains keywords indicating the URL already exists
-          const errorMessage = errorData.message || errorData.error || "";
-          if (errorMessage.toLowerCase().includes("already exists") || 
-              errorMessage.toLowerCase().includes("duplicate") ||
-              errorMessage.toLowerCase().includes("already added")) {
-            toast({
-              title: "Website Already Exists",
-              description: "This website URL has already been added",
-              variant: "default",
-            });
-            return;
-          }
-          throw new Error(errorMessage || "Failed to add website");
-        } else {
-          // Handle plain text error responses
-          const errorText = await response.text();
-          // Check if error text contains keywords indicating the URL already exists
-          if (errorText.toLowerCase().includes("already exists") ||
-              errorText.toLowerCase().includes("duplicate") ||
-              errorText.toLowerCase().includes("already added")) {
-            toast({
-              title: "Website Already Exists",
-              description: "This website URL has already been added",
-              variant: "default",
-            });
-            return;
-          }
-          throw new Error(errorText || "Failed to add website");
-        }
-      }
-  
+
+      if (!response.ok) throw new Error('Failed to add website')
+
       toast({
-        title: "Success",
-        description: "Website added successfully",
+        title: 'Success',
+        description: 'Website added successfully',
       })
-      
-      form.reset()
+
+      setUrl('')
       router.refresh()
     } catch (error) {
-      console.error("Error adding website:", error)
-      
-      // Only handle non-duplicate errors here since duplicates are handled directly above
       toast({
-        title: "Error", 
-        description: error instanceof Error ? error.message : "Failed to add website",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to add website',
+        variant: 'destructive',
       })
     } finally {
       setIsSubmitting(false)
@@ -132,29 +68,55 @@ export function WebsiteForm() {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Website URL</FormLabel>
-              <FormControl>
-                <Input placeholder="https://example.edu" {...field} />
-              </FormControl>
-              <FormDescription>
-                Enter the full URL including https://
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <Card>
+      <CardContent className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="grid gap-2">
+              <Label htmlFor="url">Website URL</Label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="url"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Enter the full URL including http:// or https://
+              </p>
+            </div>
+          </motion.div>
 
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Adding..." : "Add Website"}
-        </Button>
-      </form>
-    </Form>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                'Add Website'
+              )}
+            </Button>
+          </motion.div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

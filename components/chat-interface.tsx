@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/components/ui/use-toast'
 import ReactMarkdown from 'react-markdown'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FadeIn } from '@/components/animations/fade-in'
 
 interface Message {
   id: string
@@ -181,86 +183,100 @@ export function ChatInterface() {
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold tracking-tight">
-                BVC Engineering College Assistant
-              </h2>
-              <p className="text-muted-foreground">
-                Ask me anything about BVC Engineering College!
-              </p>
-            </div>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <Card key={message.id} className={message.role === 'user' ? 'ml-12' : 'mr-12'}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <Avatar>
-                    {message.role === 'user' ? (
-                      <>
-                        <AvatarImage src={user?.imageUrl} />
-                        <AvatarFallback>
-                          {user?.firstName?.[0] || 'U'}
-                        </AvatarFallback>
-                      </>
-                    ) : (
-                      <>
-                        <AvatarImage src="/bot-avatar.png" />
-                        <AvatarFallback>AI</AvatarFallback>
-                      </>
-                    )}
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="prose dark:prose-invert max-w-none">
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
-                    </div>
-                    {message.role === 'assistant' && message.sources && (
-                      <div className="mt-4">
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Sources:
-                        </p>
-                        <ul key={message.id} className="mt-2 text-sm text-muted-foreground">
-                          {message.sources.map((source) => (
-                            <li key={source.id}>
-                              {source.title} ({source.category})
-                            </li>
-                          ))}
-                        </ul>
-                        <Feedback questionId={message.id} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-        {isLoading && (
-          <Card className="mr-12">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-4">
-                <Avatar>
-                  <AvatarImage src="/bot-avatar.png" />
-                  <AvatarFallback>AI</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <p className="text-sm text-muted-foreground">
-                      Thinking...
-                    </p>
-                  </div>
-                </div>
+        <AnimatePresence>
+          {messages.length === 0 ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold tracking-tight">
+                  BVC Engineering College Assistant
+                </h2>
+                <p className="text-muted-foreground">
+                  Ask me anything about BVC Engineering College!
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+              >
+                <Card key={message.id} className={message.role === 'user' ? 'ml-12' : 'mr-12'}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-4">
+                      <Avatar>
+                        {message.role === 'user' ? (
+                          <>
+                            <AvatarImage src={user?.imageUrl} />
+                            <AvatarFallback>
+                              {user?.firstName?.[0] || 'U'}
+                            </AvatarFallback>
+                          </>
+                        ) : (
+                          <>
+                            <AvatarImage src="/bot-avatar.png" />
+                            <AvatarFallback>AI</AvatarFallback>
+                          </>
+                        )}
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="prose dark:prose-invert max-w-none">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                        {message.role === 'assistant' && message.sources && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="mt-4"
+                          >
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Sources:
+                            </p>
+                            <ul key={message.id} className="mt-2 text-sm text-muted-foreground">
+                              {message.sources.map((source) => (
+                                <li key={source.id}>
+                                  {source.title} ({source.category})
+                                </li>
+                              ))}
+                            </ul>
+                            <Feedback questionId={message.id} />
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
+          {isLoading && (
+            <FadeIn>
+              <Card className="mr-12">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <Avatar>
+                      <AvatarImage src="/bot-avatar.png" />
+                      <AvatarFallback>AI</AvatarFallback>
+                    </Avatar>
+                    <div className="flex space-x-2">
+                      <div className="h-3 w-3 rounded-full bg-primary/20 animate-bounce [animation-delay:-0.3s]" />
+                      <div className="h-3 w-3 rounded-full bg-primary/20 animate-bounce [animation-delay:-0.15s]" />
+                      <div className="h-3 w-3 rounded-full bg-primary/20 animate-bounce" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </FadeIn>
+          )}
+        </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
       <div className="border-t p-4">
-        <div className="flex space-x-2">
+        <form onSubmit={handleSendMessage} className="flex space-x-2">
           <Textarea
             placeholder="Ask a question about BVC Engineering College..."
             value={input}
@@ -274,7 +290,7 @@ export function ChatInterface() {
             className="min-h-12 flex-1 resize-none"
           />
           <Button
-            onClick={handleSendMessage}
+            type="submit"
             disabled={!input.trim() || isLoading}
             className="h-12 w-12 p-0"
           >
@@ -285,7 +301,7 @@ export function ChatInterface() {
             )}
             <span className="sr-only">Send</span>
           </Button>
-        </div>
+        </form>
       </div>
     </div>
   )

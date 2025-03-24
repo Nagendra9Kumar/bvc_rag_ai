@@ -11,222 +11,167 @@ import { rateLimit } from '@/lib/rate-limit'
 import { pineconeIndex } from '@/lib/pinecone'
 import { getEmbedding } from '@/lib/huggingface'
 
-// More restrictive rate limiting for scraping: 10 requests per 5 minutes
+// Enhanced rate limiting: 10 requests per 5 minutes per user
 const limiter = rateLimit({
   maxRequests: 10,
-  windowMs: 5 * 60 * 1000, // 5 minutes
+  windowMs: 5 * 60 * 1000,
 });
 
-// Configuration for retry mechanism
+// Configuration
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000; // 2 seconds
-const MAX_TIMEOUT = 60000; // 60 seconds
+const RETRY_DELAY = 2000;
+const MAX_TIMEOUT = 60000;
+const MAX_CONTENT_LENGTH = 5 * 1024 * 1024; // 5MB
 
 // Helper function to implement delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function createEmbeddings(websiteId: string, userId: string, content: string, metadata: any) {
-  try {
-    // Split text into chunks for embeddings
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    })
-    
-    const textChunks = await textSplitter.splitText(content)
-    
-    // Create batch of documents with embeddings using HuggingFace
-    const vectors = []
-    
-    for (let i = 0; i < textChunks.length; i++) {
-      const chunk = textChunks[i]
-      // Convert chunk to embedding
-      const embeddingVector = await getEmbedding(chunk)
-      console.log(`Embedding for chunk ${i}:`)
-      vectors.push({
-        id: `${websiteId}-chunk-${i}`,
-        values: embeddingVector,
-        metadata: {
-          text: chunk,
-          userId,
-          websiteId,
-          chunkIndex: i,
-          ...metadata
-        },
-      })
-    }
-    const batchSize = 100
-    for (let i = 0; i < vectors.length; i += batchSize) {
-      const batch = vectors.slice(i, i + batchSize)
-
-      // Pass the batch array as the first argument
-      await pineconeIndex.upsert(
-        batch  // <-- array of vectors
-      )
-    }
-    return vectors.length
-  } catch (error) {
-    console.error('Error creating embeddings:', error)
-    throw error
+// Enhanced HTML content extraction
+function extractContent($: cheerio.CheerioAPI) {
+  // Remove unwanted elements
+  $('script, style, noscript, iframe, nav, footer, header, aside, .cookie-banner, .ad, #cookie-consent').remove();
+  
+  // Get main content areas first
+  const mainContent = $('main, article, .content, .main-content, #content, #main').text();
+  if (mainContent.length > 100) {
+    return mainContent;
   }
+
+  // Fallback to body content with better cleaning
+  return $('body')
+    .clone()
+    .find('nav, header, footer, aside, .navigation, .menu, .sidebar')
+    .remove()
+    .end()
+    .text();
 }
 
-// Scraping function with production-ready error handling
+// Enhanced scraping function with better error handling
 async function scrapeWebsite(url: string) {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      console.log(`Scraping website: ${url} (Attempt ${attempt}/${MAX_RETRIES})`);
-      
-      // Use axios to fetch the HTML content with increased timeout
+      console.log(`🌐 Scraping website: ${url} (Attempt ${attempt}/${MAX_RETRIES})`);
+
       const response = await axios.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
         },
         timeout: MAX_TIMEOUT,
-        validateStatus: (status) => status < 400 // Treat 3xx as success
+        maxContentLength: MAX_CONTENT_LENGTH,
+        validateStatus: (status) => status < 400
       });
-      
-      // Load HTML content into Cheerio
+
       const $ = cheerio.load(response.data);
-      
-      // Extract title
-      const title = $('title').text().trim() || url;
-      
-      // Extract meta description
-      const description = $('meta[name="description"]').attr('content') || '';
-      
-      // Extract page content (text)
-      // Remove scripts, styles, and other non-content elements
-      $('script, style, noscript, iframe, nav, footer, header, aside').remove();
-      
-      // Get the text content of the body
-      const content = $('body').text()
-        .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
-        .replace(/\n+/g, '\n') // Replace multiple newlines with single newline
+
+      // Enhanced metadata extraction
+      const title = $('title').text().trim() || 
+                   $('meta[property="og:title"]').attr('content') || 
+                   $('h1').first().text().trim() ||
+                   url;
+
+      const description = $('meta[name="description"]').attr('content') || 
+                         $('meta[property="og:description"]').attr('content') || 
+                         '';
+
+      const content = extractContent($)
+        .replace(/\s+/g, ' ')
+        .replace(/\n+/g, '\n')
         .trim();
-      
+
       if (!content) {
-        throw new Error('No content found in the webpage');
+        throw new Error('No meaningful content found in the webpage');
       }
-      
+
       return {
         title,
         description,
         content,
         url,
         scrapedAt: new Date(),
-        statusCode: response.status
+        statusCode: response.status,
+        contentLength: content.length
       };
     } catch (error) {
       lastError = error as Error;
-      console.error(`Error scraping ${url} (Attempt ${attempt}/${MAX_RETRIES}):`, error);
-      
-      // Check if we should retry based on the error type
+      console.error(`❌ Error scraping ${url} (Attempt ${attempt}/${MAX_RETRIES}):`, error);
+
       if (error instanceof AxiosError) {
         const status = error.response?.status;
-        if (error.code === 'ECONNABORTED' || status === 429 || 
-            (status && status >= 500) || error.code === 'ECONNREFUSED') {
-          if (attempt < MAX_RETRIES) {
-            const waitTime = RETRY_DELAY * attempt;
-            console.log(`Waiting ${waitTime}ms before retry...`);
-            await delay(waitTime);
-            continue;
-          }
+        const isRetryable = error.code === 'ECONNABORTED' || 
+                           error.code === 'ECONNREFUSED' ||
+                           status === 429 || 
+                           (status && status >= 500 && status < 600);
+
+        if (isRetryable && attempt < MAX_RETRIES) {
+          const waitTime = RETRY_DELAY * Math.pow(2, attempt - 1); // Exponential backoff
+          console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+          await delay(waitTime);
+          continue;
         }
       }
-      
-      // If we get here, either we've exhausted retries or encountered a non-retryable error
-      throw new Error(`Failed to scrape ${url} after ${attempt} attempts: ${lastError?.message}`);
+
+      throw new Error(`Failed to scrape ${url}: ${lastError?.message}`);
     }
   }
-  
-  // This shouldn't be reachable, but TypeScript wants it
+
   throw lastError || new Error(`Failed to scrape ${url}`);
 }
 
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, { headers: corsHeaders(request) });
-}
-
-export async function POST(
-  request: NextRequest, 
-  context: { params: Promise<{ _id: string }> }
-) {
+// Enhanced embedding creation with batching and error handling
+async function createEmbeddings(websiteId: string, userId: string, content: string, metadata: any) {
   try {
-    // Check rate limit
-    const rateLimitResult = await limiter(request);
-    if (rateLimitResult) {
-      return NextResponse.json(
-        { error: rateLimitResult.error },
-        { 
-          status: 429,
-          headers: {
-            ...corsHeaders(request),
-            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
-          }
-        }
-      );
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+    
+    const textChunks = await textSplitter.splitText(content);
+    console.log(`📄 Created ${textChunks.length} chunks from content`);
+    
+    const vectors = [];
+    const batchSize = 100;
+    
+    for (let i = 0; i < textChunks.length; i++) {
+      const chunk = textChunks[i];
+      try {
+        const embeddingVector = await getEmbedding(chunk);
+        vectors.push({
+          id: `${websiteId}-chunk-${i}`,
+          values: embeddingVector,
+          metadata: {
+            text: chunk,
+            userId,
+            websiteId,
+            chunkIndex: i,
+            ...metadata
+          },
+        });
+        console.log(`✅ Generated embedding for chunk ${i + 1}/${textChunks.length}`);
+      } catch (error) {
+        console.error(`❌ Error generating embedding for chunk ${i}:`, error);
+        throw error;
+      }
     }
 
-    const { userId } = await getAuth()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401, headers: corsHeaders(request) }
-      )
+    // Batch upsert vectors to Pinecone
+    for (let i = 0; i < vectors.length; i += batchSize) {
+      const batch = vectors.slice(i, i + batchSize);
+      await pineconeIndex.upsert(batch);
+      console.log(`📤 Uploaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectors.length / batchSize)}`);
     }
-    
-    const { _id } = await context.params;
-    
-    if (!_id) {
-      return NextResponse.json(
-        { error: 'Missing website ID' },
-        { status: 400, headers: corsHeaders(request) }
-      )
-    }
-    
-    const client = await clientPromise
-    const db = client.db('bvc_rag_ai')
-    const websitesCollection = db.collection('websites')
-    
-    // Find the website and verify ownership
-    const website = await websitesCollection.findOne({
-      _id: new ObjectId(_id), 
-      createdBy: userId
-    })
-    
-    if (!website) {
-      return NextResponse.json(
-        { error: 'Website not found or unauthorized' },
-        { status: 404, headers: corsHeaders(request) }
-      )
-    }
-    
-    // Update status to pending
-    await updateWebsiteStatus(websitesCollection, _id, 'pending', {
-      lastUpdate: new Date()
-    })
-    
-    // Process website asynchronously
-    processWebsiteAsync(db, website, _id, userId).catch(error => {
-      console.error(`Background processing error for ${_id}:`, error)
-    })
-    
-    return NextResponse.json(
-      { message: 'Website scraping and embedding generation initiated' },
-      { headers: corsHeaders(request) }
-    )
-  } catch (error: any) {
-    console.error('Error initiating scraping:', error)
-    return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
-      { status: 500, headers: corsHeaders(request) }
-    )
+
+    return vectors.length;
+  } catch (error) {
+    console.error('Error creating embeddings:', error);
+    throw error;
   }
 }
 
+// Helper function to update website status
 async function updateWebsiteStatus(
   websitesCollection: any,
   _id: string,
@@ -246,27 +191,26 @@ async function updateWebsiteStatus(
       }
     }
   );
+  console.log(`📝 Updated website ${_id} status to ${status}`);
 }
 
+// Enhanced async processing function
 async function processWebsiteAsync(db: any, website: any, _id: string, userId: string) {
   const websitesCollection = db.collection('websites');
-  
+
   try {
-    // Update status to scraping
     await updateWebsiteStatus(websitesCollection, _id, 'scraping', {
       currentAttempt: 1,
       maxAttempts: MAX_RETRIES
     });
 
-    // Scrape the website
     const scrapedData = await scrapeWebsite(website.url);
     
-    // Update status to processing
     await updateWebsiteStatus(websitesCollection, _id, 'processing', {
       statusCode: scrapedData.statusCode
     });
 
-    // Store scraped content in MongoDB
+    // Store scraped content
     const contentCollection = db.collection('website_contents');
     await contentCollection.updateOne(
       { websiteId: new ObjectId(_id) },
@@ -279,27 +223,22 @@ async function processWebsiteAsync(db: any, website: any, _id: string, userId: s
       },
       { upsert: true }
     );
-    
-    // Create embeddings and store in Pinecone
-    const metadata = {
-      title: scrapedData.title,
-      description: scrapedData.description,
-      url: website.url,
-      source: 'website',
-      sourceId: _id,
-    };
-    
-    // Update status to embedding
+
     await updateWebsiteStatus(websitesCollection, _id, 'embedding', {});
     
     const chunksCount = await createEmbeddings(
       _id,
       userId,
       scrapedData.content,
-      metadata
+      {
+        title: scrapedData.title,
+        description: scrapedData.description,
+        url: website.url,
+        source: 'website',
+        sourceId: _id,
+      }
     );
 
-    // Update status to active with final details
     await websitesCollection.updateOne(
       { _id: new ObjectId(_id) },
       {
@@ -309,7 +248,7 @@ async function processWebsiteAsync(db: any, website: any, _id: string, userId: s
           statusDetails: {
             lastUpdate: new Date(),
             progress: {
-              phase: 'embedding',
+              phase: 'completed',
               current: chunksCount,
               total: chunksCount
             }
@@ -322,11 +261,10 @@ async function processWebsiteAsync(db: any, website: any, _id: string, userId: s
       }
     );
     
-    console.log(`Successfully scraped website ${_id} and created ${chunksCount} embeddings`);
+    console.log(`✨ Successfully processed website ${_id} with ${chunksCount} embeddings`);
   } catch (error) {
-    console.error('Error in scraping process:', error);
+    console.error('❌ Error in processing:', error);
     
-    // Update status to error with error details
     await websitesCollection.updateOne(
       { _id: new ObjectId(_id) },
       {
@@ -338,6 +276,82 @@ async function processWebsiteAsync(db: any, website: any, _id: string, userId: s
           }
         }
       }
+    );
+  }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { headers: corsHeaders(request) });
+}
+
+export async function POST(
+  request: NextRequest, 
+  context: { params: Promise<{ _id: string }> }
+) {
+  try {
+    const rateLimitResult = await limiter(request);
+    if (rateLimitResult) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { 
+          status: 429,
+          headers: {
+            ...corsHeaders(request),
+            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+          }
+        }
+      );
+    }
+
+    const { userId } = await getAuth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: corsHeaders(request) }
+      );
+    }
+    
+    const { _id } = await context.params;
+    if (!_id) {
+      return NextResponse.json(
+        { error: 'Missing website ID' },
+        { status: 400, headers: corsHeaders(request) }
+      );
+    }
+    
+    const client = await clientPromise;
+    const db = client.db();
+    const websitesCollection = db.collection('websites');
+    
+    const website = await websitesCollection.findOne({
+      _id: new ObjectId(_id), 
+      createdBy: userId
+    });
+    
+    if (!website) {
+      return NextResponse.json(
+        { error: 'Website not found or unauthorized' },
+        { status: 404, headers: corsHeaders(request) }
+      );
+    }
+    
+    await updateWebsiteStatus(websitesCollection, _id, 'pending', {
+      lastUpdate: new Date()
+    });
+    
+    processWebsiteAsync(db, website, _id, userId).catch(error => {
+      console.error(`Background processing error for ${_id}:`, error);
+    });
+    
+    return NextResponse.json(
+      { message: 'Website scraping and embedding generation initiated' },
+      { headers: corsHeaders(request) }
+    );
+  } catch (error: any) {
+    console.error('Error initiating scraping:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal Server Error' },
+      { status: 500, headers: corsHeaders(request) }
     );
   }
 }

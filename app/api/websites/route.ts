@@ -15,7 +15,6 @@ export async function POST(req: Request) {
     if (!body) {
       return new NextResponse('Invalid request body', { status: 400 })
     }
-    // Extract URL from request body
     const { url } = body
 
     // Basic validation
@@ -39,10 +38,10 @@ export async function POST(req: Request) {
       return new NextResponse('URL already exists', { status: 409 })
     }
 
-    // Create new website entry
+    // Create new website entry with unknown status
     const website: Website = {
       url,
-      status: 'pending',
+      status: 'unknown',
       createdAt: new Date(),
       updatedAt: new Date(),
       createdBy: userId
