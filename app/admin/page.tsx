@@ -49,7 +49,7 @@ export default function AdminPage() {
           {adminLinks.map((link, index) => {
             const Icon = link.icon
             return (
-              <StaggerItem key={link.href} index={index}>
+              <StaggerItem key={link.href}>
                 <ScaleOnHover>
                   <AnimatedCard delay={index * 0.1}>
                     <Link href={link.href} className="block p-6">
