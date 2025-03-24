@@ -3,11 +3,11 @@ import { redirect } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Navbar } from '@/components/navbar'
-import { DocumentForm } from '@/components/document-form'
-import { FileUpload } from '@/components/file-upload'
-import { DocumentList } from '@/components/document-list'
-import { FadeIn } from '@/components/animations/fade-in'
+import { Navbar } from '../../components/navbar'
+import { DocumentForm } from '../../components/document-form'
+import { FileUpload } from '../../components/file-upload'
+import { DocumentList } from '../../components/document-list'
+import { FadeIn } from '../../components/animations/fade-in'
 
 const tabItems = [
   { value: 'documents', label: 'Documents', icon: '📄' },

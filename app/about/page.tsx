@@ -1,7 +1,9 @@
+'use client'
+
 import { motion } from 'framer-motion'
 import { Navbar } from '@/components/navbar'
 import { Card, CardContent } from '@/components/ui/card'
-import { FadeIn } from '@/components/animations/fade-in'
+import { FadeIn } from '../../components/animations/fade-in'
 import { School, BookOpen, Users, AwardIcon } from 'lucide-react'
 
 const features = [

@@ -276,7 +276,7 @@ export function WebsiteList() {
                 <TableHead>URL</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last Updated</TableHead>
-                <TableHead className="w-[140px]">Actions</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -298,8 +298,10 @@ export function WebsiteList() {
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 hover:underline"
                         >
-                          {website.url}
-                          <ExternalLink className="h-4 w-4" />
+                          <span className="max-w-[200px] lg:max-w-[400px] truncate">
+                            {website.url}
+                          </span>
+                          <ExternalLink className="h-4 w-4 flex-shrink-0" />
                         </a>
                       </div>
                     </TableCell>
@@ -343,26 +345,20 @@ export function WebsiteList() {
                           size="icon"
                           onClick={() => handleScrapeWebsite(website._id)}
                           disabled={scrapingWebsites.has(website._id) || ['scraping', 'embedding', 'processing', 'pending'].includes(website.status?.toLowerCase())}
-                          className="relative transition-all duration-200 hover:rotate-180"
+                          className="relative"
                         >
                           <RotateCw className={`h-4 w-4 ${scrapingWebsites.has(website._id) ? 'animate-spin' : ''}`} />
                           <span className="sr-only">Scrape</span>
-                          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
-                            Scrape
-                          </span>
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              className="relative transition-all duration-200 hover:bg-destructive hover:text-destructive-foreground"
+                              className="relative hover:bg-destructive hover:text-destructive-foreground"
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Delete</span>
-                              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
-                                Delete
-                              </span>
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
