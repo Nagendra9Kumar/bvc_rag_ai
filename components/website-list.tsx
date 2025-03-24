@@ -60,6 +60,11 @@ export function WebsiteList() {
   const fetchWebsites = async () => {
     try {
       const response = await fetch('/api/websites')
+      if (response.status === 401) {
+        // Handle unauthorized access
+        router.push('/sign-in')
+        return
+      }
       if (!response.ok) throw new Error('Failed to fetch websites')
       const data = await response.json()
       setWebsites(data)
@@ -339,7 +344,7 @@ export function WebsiteList() {
                       {formatDate(website.updatedAt)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                      <div className="flex items-center gap-2 group-hover:opacity-100 transition-all duration-200">
                         <Button
                           variant="ghost"
                           size="icon"

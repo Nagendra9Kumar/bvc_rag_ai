@@ -1,122 +1,96 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Loader2, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
 
 interface FeedbackProps {
   questionId: string
+  className?: string
 }
 
-export function Feedback({ questionId }: FeedbackProps) {
-  const [rating, setRating] = useState<'helpful' | 'not_helpful' | null>(null)
-  const [comment, setComment] = useState('')
+export function Feedback({ questionId, className }: FeedbackProps) {
+  const [feedback, setFeedback] = useState<'positive' | 'negative' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
-  const handleSubmit = async () => {
-    if (!rating) return
-
+  const handleFeedback = async (type: 'positive' | 'negative') => {
+    if (isSubmitting) return
     setIsSubmitting(true)
+
     try {
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          questionId,
-          rating,
-          comment,
-        }),
+        body: JSON.stringify({ questionId, type }),
       })
 
-      if (!response.ok) throw new Error('Failed to submit feedback')
+      if (!response.ok) throw new Error()
 
+      setFeedback(type)
       toast({
-        title: 'Thank you!',
-        description: 'Your feedback helps us improve.',
+        title: 'Thank you for your feedback!',
+        description: type === 'positive' 
+          ? 'We\'re glad this was helpful.'
+          : 'We\'ll work on improving our responses.',
       })
-
-      setRating(null)
-      setComment('')
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to submit feedback. Please try again.',
         variant: 'destructive',
       })
+      setFeedback(null)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.2 }}
-      className="mt-4 space-y-4"
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Was this response helpful?</span>
-        <div className="flex gap-2">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+    <div className={cn('mt-4 flex items-center gap-2', className)}>
+      <AnimatePresence mode="wait">
+        {!feedback ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-2"
+          >
+            <p className="text-xs text-muted-foreground">Was this helpful?</p>
             <Button
-              variant={rating === 'helpful' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setRating('helpful')}
-              className="h-8 w-8 p-0"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:text-green-500 hover:bg-green-500/10 transition-colors"
+              onClick={() => handleFeedback('positive')}
+              disabled={isSubmitting}
             >
               <ThumbsUp className="h-4 w-4" />
-              <span className="sr-only">Helpful</span>
+              <span className="sr-only">Yes, this was helpful</span>
             </Button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              variant={rating === 'not_helpful' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setRating('not_helpful')}
-              className="h-8 w-8 p-0"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+              onClick={() => handleFeedback('negative')}
+              disabled={isSubmitting}
             >
               <ThumbsDown className="h-4 w-4" />
-              <span className="sr-only">Not Helpful</span>
+              <span className="sr-only">No, this wasn't helpful</span>
             </Button>
           </motion.div>
-        </div>
-      </div>
-
-      {rating && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2 }}
-          className="space-y-4"
-        >
-          <Textarea
-            placeholder="Tell us why (optional)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="h-20 resize-none"
-          />
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto"
+        ) : (
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="text-xs text-muted-foreground"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              'Submit Feedback'
-            )}
-          </Button>
-        </motion.div>
-      )}
-    </motion.div>
+            Thanks for your feedback!
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }

@@ -1,19 +1,39 @@
-import { Loading } from '@/components/ui/loading'
-import { Navbar } from '@/components/navbar'
+'use client'
+
+import { motion } from 'framer-motion'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PageLayout } from '@/components/client/page-layout'
 
 export default function AdminLoading() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <main className="flex-1 container py-6">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Loading your dashboard...</p>
-          </div>
-          <Loading size="lg" />
+    <PageLayout>
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-[200px]" />
+          <Skeleton className="mt-2 h-4 w-[300px]" />
         </div>
-      </main>
-    </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="rounded-lg border p-4"
+            >
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-[120px]" />
+                <Skeleton className="h-12 w-[180px]" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4 rounded-full" />
+                  <Skeleton className="h-4 w-[100px]" />
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </PageLayout>
   )
 }

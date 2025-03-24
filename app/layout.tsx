@@ -2,6 +2,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { Inter } from 'next/font/google'
+import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import './globals.css'
 
 // Use Inter as the default font
@@ -38,6 +39,7 @@ export default function RootLayout({
               {children}
             </div>
             <Toaster />
+            <ScrollToTop />
           </ThemeProvider>
         </body>
       </html>

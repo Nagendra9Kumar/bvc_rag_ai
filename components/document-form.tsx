@@ -2,75 +2,49 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { FileUpload } from '@/components/file-upload'
+import { ButtonWithLoading } from '@/components/client/button-with-loading'
+import { FormLayout } from '@/components/ui/form-layout'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Label } from '@/components/ui/label'
-
-const categories = [
-  'Academic Programs',
-  'Admissions',
-  'Faculty',
-  'Research',
-  'Campus Life',
-  'Infrastructure',
-  'Placements',
-  'Events',
-  'Other'
-]
+import { Loading } from '@/components/ui/loading'
 
 export function DocumentForm() {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    category: '',
-  })
+  const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.title || !formData.content || !formData.category) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      })
-      return
-    }
+    if (!title.trim() || !content.trim() || isLoading) return
 
     setIsLoading(true)
+
     try {
       const response = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ title: title.trim(), content: content.trim() }),
       })
 
-      if (!response.ok) throw new Error('Failed to create document')
+      if (!response.ok) throw new Error()
 
       toast({
         title: 'Success',
-        description: 'Document created successfully',
+        description: 'Document added successfully',
       })
 
+      setTitle('')
+      setContent('')
       router.refresh()
-      setFormData({ title: '', content: '', category: '' })
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create document',
+        description: 'Failed to add document',
         variant: 'destructive',
       })
     } finally {
@@ -78,82 +52,66 @@ export function DocumentForm() {
     }
   }
 
+  const handleUploadComplete = (result: { content: string }) => {
+    setContent(result.content)
+    setIsUploading(false)
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="grid gap-4"
-      >
-        <div className="grid gap-2">
-          <Label htmlFor="title">Title</Label>
+    <FormLayout
+      title="Add New Document"
+      description="Add a new document to the knowledge base."
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
           <Input
-            id="title"
-            placeholder="Enter document title"
-            value={formData.title}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, title: e.target.value }))
-            }
-            className="resize-none"
+            placeholder="Document title..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={isLoading}
+            className="h-11"
+            required
           />
         </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="category">Category</Label>
-          <Select
-            value={formData.category}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, category: value }))
-            }
-          >
-            <SelectTrigger id="category">
-              <SelectValue placeholder="Select a category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="content">Content</Label>
+        <div className="space-y-2">
           <Textarea
-            id="content"
-            placeholder="Enter document content"
-            value={formData.content}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, content: e.target.value }))
-            }
-            className="min-h-[200px] resize-none"
+            placeholder="Document content..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            disabled={isLoading}
+            className="min-h-[200px] resize-y"
+            required
           />
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            'Create Document'
+        <div className="space-y-4">
+          <FileUpload
+            onUploadStart={() => setIsUploading(true)}
+            onUploadComplete={handleUploadComplete}
+            onUploadError={(error) => {
+              setIsUploading(false)
+              toast({
+                title: 'Error',
+                description: error,
+                variant: 'destructive',
+              })
+            }}
+          />
+          {isUploading && (
+            <Loading size="sm" text="Processing document..." className="py-2" />
           )}
-        </Button>
-      </motion.div>
-    </form>
+        </div>
+        <div className="flex justify-end">
+          <ButtonWithLoading
+            type="submit"
+            isLoading={isLoading}
+            loadingText="Adding..."
+            disabled={!title.trim() || !content.trim() || isLoading || isUploading}
+            className="h-11 px-8"
+          >
+            Add Document
+          </ButtonWithLoading>
+        </div>
+      </form>
+    </FormLayout>
   )
 }

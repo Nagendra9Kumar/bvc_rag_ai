@@ -4,9 +4,12 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FileText, Pencil, Trash2, Search, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { FileText, Pencil, Trash2, Search, AlertCircle, Edit } from 'lucide-react'
+import { ButtonWithLoading } from '@/components/client/button-with-loading'
+import { AnimatedCard } from '@/components/client/animated-card'
 import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -29,51 +32,35 @@ import {
 import { useToast } from '@/components/ui/use-toast'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Loading } from '@/components/ui/loading'
 
 interface Document {
   _id: string
   title: string
-  content: string
   category: string
-  createdAt: string
   updatedAt: string
+  content: string
 }
 
-export function DocumentList() {
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+interface DocumentListProps {
+  initialDocuments: Document[]
+}
+
+export function DocumentList({ initialDocuments }: DocumentListProps) {
+  const [documents, setDocuments] = useState(initialDocuments)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-
-  useEffect(() => {
-    fetchDocuments()
-  }, [])
-
-  const fetchDocuments = async () => {
-    try {
-      const response = await fetch('/api/documents')
-      if (!response.ok) throw new Error('Failed to fetch documents')
-      const data = await response.json()
-      setDocuments(data)
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch documents',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleDelete = async (id: string) => {
     try {
       const response = await fetch(`/api/documents/${id}`, {
         method: 'DELETE',
       })
-      if (!response.ok) throw new Error('Failed to delete document')
-      
+
+      if (!response.ok) throw new Error()
+
       setDocuments(prev => prev.filter(doc => doc._id !== id))
       toast({
         title: 'Success',
@@ -89,8 +76,7 @@ export function DocumentList() {
   }
 
   const filteredDocuments = documents.filter(doc =>
-    doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    doc.category.toLowerCase().includes(searchQuery.toLowerCase())
+    doc.title.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const formatDate = (dateString: string) => {
@@ -101,22 +87,8 @@ export function DocumentList() {
     })
   }
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-10 w-[250px]" />
-          <Skeleton className="h-10 w-[100px]" />
-        </div>
-        {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full" />
-        ))}
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -127,10 +99,11 @@ export function DocumentList() {
             className="pl-9"
           />
         </div>
-        <Button onClick={fetchDocuments}>Refresh</Button>
       </div>
 
-      {filteredDocuments.length === 0 ? (
+      {isLoading ? (
+        <Loading text="Loading documents..." />
+      ) : filteredDocuments.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -143,81 +116,76 @@ export function DocumentList() {
           </p>
         </motion.div>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <AnimatePresence>
-                {filteredDocuments.map((doc) => (
-                  <motion.tr
-                    key={doc._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.2 }}
-                    className="group"
-                  >
-                    <TableCell>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <AnimatePresence mode="popLayout">
+            {filteredDocuments.map((doc) => (
+              <motion.div
+                key={doc._id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card className="p-4 h-full flex flex-col">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{doc.title}</span>
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <h3 className="font-medium leading-none">{doc.title}</h3>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{doc.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(doc.updatedAt)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-sm text-muted-foreground">
+                        Updated {formatDate(doc.updatedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground line-clamp-3">
+                    {doc.content}
+                  </p>
+                  <div className="mt-4 flex items-center gap-2 pt-2 border-t">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => router.push(`/admin/documents/edit/${doc._id}`)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          onClick={() => router.push(`/admin/documents/edit/${doc._id}`)}
+                          size="sm"
+                          className="w-full hover:bg-destructive/10 hover:text-destructive"
                         >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this document? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(doc._id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
-            </TableBody>
-          </Table>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this document? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(doc._id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </div>

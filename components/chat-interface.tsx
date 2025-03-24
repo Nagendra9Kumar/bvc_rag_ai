@@ -1,122 +1,20 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useUser } from '@clerk/nextjs'
-import { Send, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useToast } from '@/components/ui/use-toast'
-import ReactMarkdown from 'react-markdown'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FadeIn } from '@/components/animations/fade-in'
+import { SendHorizontal, Bot, User, Loader2 } from 'lucide-react'
+import { nanoid } from 'nanoid'
+import { ButtonWithLoading } from '@/components/client/button-with-loading'
+import { AnimatedCard } from '@/components/client/animated-card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/components/ui/use-toast'
+import { Feedback } from '@/components/feedback'
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
-  sources?: {
-    id: string
-    title: string
-    category: string
-  }[]
-}
-
-interface FeedbackProps {
-  questionId: string
-}
-
-function Feedback({ questionId }: FeedbackProps) {
-  const [rating, setRating] = useState<number | null>(null)
-  const [comment, setComment] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const { toast } = useToast()
-  
-  const handleSubmitFeedback = async () => {
-    if (rating === null) return
-    
-    setIsSubmitting(true)
-    
-    try {
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          questionId,
-          rating,
-          comment,
-        }),
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to submit feedback')
-      }
-      
-      toast({
-        title: 'Feedback submitted',
-        description: 'Thank you for your feedback!',
-      })
-      
-      setRating(null)
-      setComment('')
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to submit feedback',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-  
-  return (
-    <div className="mt-2 flex flex-col space-y-2">
-      <div className="flex items-center space-x-2">
-        <span className="text-sm text-muted-foreground">Was this helpful?</span>
-        <div className="flex space-x-1">
-          {[1, 2, 3, 4, 5].map((value) => (
-            <Button
-              key={value}
-              variant={rating === value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setRating(value)}
-              className="h-8 w-8 p-0"
-            >
-              {value}
-            </Button>
-          ))}
-        </div>
-      </div>
-      {rating !== null && (
-        <>
-          <Textarea
-            placeholder="Any additional comments? (optional)"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="h-20 resize-none"
-          />
-          <Button
-            onClick={handleSubmitFeedback}
-            disabled={isSubmitting}
-            className="self-end"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting
-              </>
-            ) : (
-              'Submit Feedback'
-            )}
-          </Button>
-        </>
-      )}
-    </div>
-  )
 }
 
 export function ChatInterface() {
@@ -124,183 +22,175 @@ export function ChatInterface() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { isSignedIn, user } = useUser()
   const { toast } = useToast()
-  
-  useEffect(() => {
+
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
   }, [messages])
-  
-  const handleSendMessage = async () => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!input.trim() || isLoading) return
-    
+
+    const messageId = nanoid()
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: messageId,
       role: 'user',
-      content: input,
+      content: input.trim(),
     }
-    
-    setMessages((prev) => [...prev, userMessage])
+
+    setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
-    
+
     try {
       const response = await fetch('/api/ask', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: input,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: userMessage.content }),
       })
-      
-      if (!response.ok) {
-        throw new Error('Failed to get answer')
-      }
-      
+
+      if (!response.ok) throw new Error()
+
       const data = await response.json()
       
-      const assistantMessage: Message = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: data.answer,
-        sources: data.sources,
-      }
-      
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages(prev => [
+        ...prev,
+        {
+          id: nanoid(),
+          role: 'assistant',
+          content: data.answer,
+        },
+      ])
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to get an answer. Please try again.',
+        description: 'Failed to get a response. Please try again.',
         variant: 'destructive',
       })
+      // Remove the user message if we couldn't get a response
+      setMessages(prev => prev.filter(msg => msg.id !== messageId))
     } finally {
       setIsLoading(false)
     }
   }
-  
+
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <AnimatePresence>
-          {messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold tracking-tight">
+    <div className="flex h-[calc(100vh-4rem)] flex-col">
+      <div className="flex-1 space-y-6 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <AnimatePresence mode="wait">
+        {messages.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="flex h-full items-center justify-center px-4"
+            >
+              <div className="max-w-lg text-center space-y-4">
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                   BVC Engineering College Assistant
                 </h2>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-base sm:text-lg">
                   Ask me anything about BVC Engineering College!
                 </p>
               </div>
-            </div>
+            </motion.div>
           ) : (
             messages.map((message, index) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-              >
-                <Card key={message.id} className={message.role === 'user' ? 'ml-12' : 'mr-12'}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      <Avatar>
-                        {message.role === 'user' ? (
-                          <>
-                            <AvatarImage src={user?.imageUrl} />
-                            <AvatarFallback>
-                              {user?.firstName?.[0] || 'U'}
-                            </AvatarFallback>
-                          </>
-                        ) : (
-                          <>
-                            <AvatarImage src="/bot-avatar.png" />
-                            <AvatarFallback>AI</AvatarFallback>
-                          </>
-                        )}
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="prose dark:prose-invert max-w-none">
-                          <ReactMarkdown>{message.content}</ReactMarkdown>
-                        </div>
-                        {message.role === 'assistant' && message.sources && (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                            className="mt-4"
-                          >
-                            <p className="text-sm font-medium text-muted-foreground">
-                              Sources:
-                            </p>
-                            <ul key={message.id} className="mt-2 text-sm text-muted-foreground">
-                              {message.sources.map((source) => (
-                                <li key={source.id}>
-                                  {source.title} ({source.category})
-                                </li>
-                              ))}
-                            </ul>
-                            <Feedback questionId={message.id} />
-                          </motion.div>
-                        )}
+            <motion.div
+              key={message.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className={`${
+                message.role === 'assistant' ? 'mr-4 md:mr-8 lg:mr-12' : 'ml-4 md:ml-8 lg:ml-12'
+              }`}
+            >
+              <AnimatedCard delay={index * 0.1}>
+                <div className="flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                  <Avatar className="h-8 w-8 md:h-10 md:w-10 transition-all">
+                    <AvatarImage
+                      src={message.role === 'assistant' ? '/bot-avatar.png' : undefined}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="bg-primary/10">
+                      {message.role === 'assistant' ? <Bot className="h-4 w-4 md:h-5 md:w-5" /> : <User className="h-4 w-4 md:h-5 md:w-5" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {message.role === 'assistant' ? 'AI Assistant' : 'You'}
+                    </p>
+                    <div className="space-y-4 [&_p]:leading-relaxed">
+                      {message.content.split('\n').map((line, i) => (
+                        <p key={i} className="text-sm md:text-base">{line}</p>
+                      ))}
+                    </div>
+                    {message.role === 'assistant' && (
+                      <div className="mt-4">
+                        <Feedback questionId={message.id} />
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
-          {isLoading && (
-            <FadeIn>
-              <Card className="mr-12">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <Avatar>
-                      <AvatarImage src="/bot-avatar.png" />
-                      <AvatarFallback>AI</AvatarFallback>
-                    </Avatar>
-                    <div className="flex space-x-2">
-                      <div className="h-3 w-3 rounded-full bg-primary/20 animate-bounce [animation-delay:-0.3s]" />
-                      <div className="h-3 w-3 rounded-full bg-primary/20 animate-bounce [animation-delay:-0.15s]" />
-                      <div className="h-3 w-3 rounded-full bg-primary/20 animate-bounce" />
-                    </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </FadeIn>
-          )}
+                </div>
+              </AnimatedCard>
+            </motion.div>
+          )))}
         </AnimatePresence>
+
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="mr-4 md:mr-8 lg:mr-12"
+          >
+            <AnimatedCard>
+              <div className="flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-lg">
+                <Avatar className="h-8 w-8 md:h-10 md:w-10">
+                  <AvatarImage src="/bot-avatar.png" className="object-cover" />
+                  <AvatarFallback className="bg-primary/10">
+                    <Bot className="h-4 w-4 md:h-5 md:w-5" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <p className="text-sm md:text-base text-muted-foreground">
+                    Thinking...
+                  </p>
+                </div>
+              </div>
+            </AnimatedCard>
+          </motion.div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
-      <div className="border-t p-4">
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <Textarea
+
+      <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 p-4 md:p-6">
+        <form onSubmit={handleSubmit} className="flex gap-2 md:gap-3 max-w-4xl mx-auto">
+          <Input
             placeholder="Ask a question about BVC Engineering College..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSendMessage()
-              }
-            }}
-            className="min-h-12 flex-1 resize-none"
+            disabled={isLoading}
+            className="flex-1 h-10 md:h-11"
           />
-          <Button
+          <ButtonWithLoading
             type="submit"
+            isLoading={isLoading}
+            loadingText=""
             disabled={!input.trim() || isLoading}
-            className="h-12 w-12 p-0"
+            className="w-10 md:w-11 h-10 md:h-11 shrink-0"
           >
-            {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
-            <span className="sr-only">Send</span>
-          </Button>
+            <SendHorizontal className="h-4 w-4" />
+            <span className="sr-only">Send message</span>
+          </ButtonWithLoading>
         </form>
       </div>
     </div>

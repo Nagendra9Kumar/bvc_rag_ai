@@ -3,108 +3,71 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Loader2, Save } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { FormLayout } from '@/components/ui/form-layout'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { ButtonWithLoading } from '@/components/client/button-with-loading'
 import { useToast } from '@/components/ui/use-toast'
-import { Card, CardContent } from '@/components/ui/card'
+import { Loading } from '@/components/ui/loading'
 
 interface EditDocumentFormProps {
   id: string
-  initialData?: {
-    title: string
-    content: string
-    category: string
-  }
 }
 
-const categories = [
-  'Academic Programs',
-  'Admissions',
-  'Faculty',
-  'Research',
-  'Campus Life',
-  'Infrastructure',
-  'Placements',
-  'Events',
-  'Other'
-]
-
-export function EditDocumentForm({ id, initialData }: EditDocumentFormProps) {
+export function EditDocumentForm({ id }: EditDocumentFormProps) {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState(initialData || {
-    title: '',
-    content: '',
-    category: '',
-  })
-  
+  const [isFetching, setIsFetching] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
     const fetchDocument = async () => {
-      if (initialData) return
-      
-      setIsLoading(true)
       try {
         const response = await fetch(`/api/documents/${id}`)
-        if (!response.ok) throw new Error('Failed to fetch document')
-        
+        if (!response.ok) throw new Error()
+
         const data = await response.json()
-        setFormData(data)
+        setTitle(data.title)
+        setContent(data.content)
       } catch (error) {
         toast({
           title: 'Error',
           description: 'Failed to fetch document',
           variant: 'destructive',
         })
-        router.push('/admin')
+        router.push('/admin/documents')
       } finally {
-        setIsLoading(false)
+        setIsFetching(false)
       }
     }
 
     fetchDocument()
-  }, [id, initialData, router, toast])
+  }, [id, router, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.title || !formData.content || !formData.category) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      })
-      return
-    }
+    if (!title.trim() || !content.trim() || isLoading) return
 
-    setIsSaving(true)
+    setIsLoading(true)
+
     try {
       const response = await fetch(`/api/documents/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ title: title.trim(), content: content.trim() }),
       })
 
-      if (!response.ok) throw new Error('Failed to update document')
+      if (!response.ok) throw new Error()
 
       toast({
         title: 'Success',
         description: 'Document updated successfully',
       })
 
+      router.push('/admin/documents')
       router.refresh()
-      router.push('/admin')
     } catch (error) {
       toast({
         title: 'Error',
@@ -112,109 +75,62 @@ export function EditDocumentForm({ id, initialData }: EditDocumentFormProps) {
         variant: 'destructive',
       })
     } finally {
-      setIsSaving(false)
+      setIsLoading(false)
     }
   }
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
-    )
+  if (isFetching) {
+    return <Loading size="lg" text="Loading document..." className="py-12" />
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="grid gap-6"
-      >
-        <div className="grid gap-2">
-          <Label htmlFor="title">Title</Label>
+    <FormLayout
+      title="Edit Document"
+      description="Update document details and content."
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
           <Input
-            id="title"
-            value={formData.title}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, title: e.target.value }))
-            }
-            placeholder="Enter document title"
+            placeholder="Document title..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={isLoading}
+            className="h-11"
+            required
           />
         </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="category">Category</Label>
-          <Select
-            value={formData.category}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, category: value }))
-            }
-          >
-            <SelectTrigger id="category">
-              <SelectValue placeholder="Select a category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="content">Content</Label>
+        <div className="space-y-2">
           <Textarea
-            id="content"
-            value={formData.content}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, content: e.target.value }))
-            }
-            placeholder="Enter document content"
-            className="min-h-[300px] resize-none"
+            placeholder="Document content..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            disabled={isLoading}
+            className="min-h-[300px] resize-y"
+            required
           />
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="flex justify-end gap-4"
-      >
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.push('/admin')}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={isSaving}
-          className="min-w-[100px]"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
-            </>
-          )}
-        </Button>
-      </motion.div>
-    </form>
+        <div className="flex gap-4 justify-end">
+          <ButtonWithLoading
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={isLoading}
+            className="h-11 px-8"
+          >
+            Cancel
+          </ButtonWithLoading>
+          <ButtonWithLoading
+            type="submit"
+            isLoading={isLoading}
+            loadingText="Saving..."
+            disabled={!title.trim() || !content.trim() || isLoading}
+            className="h-11 px-8"
+          >
+            Save Changes
+          </ButtonWithLoading>
+        </div>
+      </form>
+    </FormLayout>
   )
 }
 

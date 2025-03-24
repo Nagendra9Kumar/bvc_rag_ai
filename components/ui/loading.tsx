@@ -1,43 +1,54 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
 
 interface LoadingProps {
-  size?: 'sm' | 'md' | 'lg'
+  className?: string
+  size?: 'sm' | 'default' | 'lg' | 'xl'
   text?: string
+  fullScreen?: boolean
 }
 
-export function Loading({ size = 'md', text }: LoadingProps) {
-  const sizes = {
-    sm: 'h-4 w-4',
-    md: 'h-8 w-8',
-    lg: 'h-12 w-12'
-  }
+const sizeMap = {
+  sm: 'h-4 w-4',
+  default: 'h-6 w-6',
+  lg: 'h-8 w-8',
+  xl: 'h-12 w-12'
+}
 
+export function Loading({ 
+  className, 
+  size = 'default',
+  text,
+  fullScreen = false
+}: LoadingProps) {
   return (
-    <div className="flex min-h-[100px] flex-col items-center justify-center gap-4">
-      <div className="relative">
-        <motion.div
-          className={`${sizes[size]} rounded-full border-2 border-muted`}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.div
-          className={`${sizes[size]} absolute inset-0 rounded-full border-2 border-t-primary`}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-        />
-      </div>
-      {text && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-sm text-muted-foreground"
-        >
-          {text}
-        </motion.p>
-      )}
-    </div>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className={cn(
+          'flex flex-col items-center justify-center gap-3',
+          fullScreen && 'fixed inset-0 bg-background/80 backdrop-blur-sm z-50',
+          className
+        )}
+      >
+        <Loader2 className={cn('animate-spin text-muted-foreground', sizeMap[size])} />
+        {text && (
+          <p className={cn(
+            'text-muted-foreground animate-pulse',
+            size === 'sm' && 'text-xs',
+            size === 'default' && 'text-sm',
+            size === 'lg' && 'text-base',
+            size === 'xl' && 'text-lg'
+          )}>
+            {text}
+          </p>
+        )}
+      </motion.div>
+    </AnimatePresence>
   )
 }
