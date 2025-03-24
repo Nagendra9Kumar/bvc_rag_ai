@@ -38,7 +38,7 @@ export const generateText = async (
 export const getEmbedding = async (text: string): Promise<number[]> => {
     try {
         const response = await openai.embeddings.create({
-        model: "google/gemma-3-27b-it:free",
+        model: "text-embedding-ada-002",
         input: text,
         });
     
@@ -46,7 +46,9 @@ export const getEmbedding = async (text: string): Promise<number[]> => {
         throw new Error("Invalid response from OpenRouter API");
         }
         console.log("Generated embedding:", response.data[0].embedding);
-        return response.data[0].embedding;
+        const trimmedEmbedding = response.data[0].embedding.slice(0, 1024);
+        console.log("Trimmed embedding:", trimmedEmbedding);
+        return trimmedEmbedding;
 
     } catch (error) {
         console.error("Embedding generation error:", error);

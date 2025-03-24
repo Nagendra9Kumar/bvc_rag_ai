@@ -31,13 +31,25 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
+    console.log("Generated embedding:", embedding);
+    //1024 vecotor
+    embedding = embedding.slice(0, 1024); // Ensure the vector is the correct size
+    console.log("Trimmed embedding:", embedding);
     // Query Pinecone
-    const queryResponse = await pineconeIndex.query({
-      vector: embedding,
+    let queryResponse;
+    try {
+      queryResponse = await pineconeIndex.query({
+      vector: embedding, // Ensure the vector is the correct size
       topK,
       includeMetadata: true,
-    });
+      });
+    } catch (error) {
+      console.error("Pinecone Query Error:", error);
+      return NextResponse.json(
+      { error: "Failed to search the knowledge base" },
+      { status: 500 }
+      );
+    }
 
     // If no matches, return appropriate message
     if (!queryResponse.matches || queryResponse.matches.length === 0) {
