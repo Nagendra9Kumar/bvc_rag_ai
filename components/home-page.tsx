@@ -5,6 +5,7 @@ import { MessageSquare, BookOpen, Brain, ArrowRight } from 'lucide-react'
 import { PageLayout } from '@/components/client/page-layout'
 import { AnimatedCard } from '@/components/client/animated-card'
 import { ButtonWithLoading } from '@/components/client/button-with-loading'
+import { motion } from 'framer-motion'
 
 const features = [
   {
@@ -31,21 +32,26 @@ interface HomePageProps {
 export function HomePage({ isSignedIn }: HomePageProps) {
   return (
     <PageLayout>
-      <section className="container space-y-6 py-16 md:py-24 lg:py-32">
+      <section className="container space-y-6 py-16 md:py-24 lg:py-32 bg-gradient-to-b from-background to-background/60">
         <div className="mx-auto flex max-w-[64rem] flex-col items-center gap-4 text-center">
-          <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
+          <motion.h1 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl"
+          >
             BVC Engineering College
             <br />
             <span className="text-primary">Knowledge Base</span>
-          </h1>
+          </motion.h1>
           <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
-            Get instant answers to your questions about BVC Engineering College, Odalarevu.
-            Powered by advanced AI for accurate and relevant information.
+            Get instant answers about admissions, courses, faculty, campus facilities, and more at BVC Engineering College, Odalarevu.
+            No more searching through multiple websites—our AI provides accurate information instantly.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <ButtonWithLoading asChild>
-              <Link href="/chat" className="inline-flex items-center gap-2">
-                Start Chatting <ArrowRight className="h-4 w-4" />
+              <Link href="/chat" className="inline-flex items-center gap-2" aria-label="Start chatting with the AI assistant">
+                Start Chatting <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </ButtonWithLoading>
             {!isSignedIn && (
@@ -72,6 +78,21 @@ export function HomePage({ isSignedIn }: HomePageProps) {
               </div>
             </AnimatedCard>
           ))}
+        </div>
+
+        <div className="mt-12 rounded-lg border bg-card p-6">
+          <h2 className="mb-4 text-xl font-semibold">Popular Questions</h2>
+          <div className="space-y-2">
+            {["How do I apply for admission?", "What courses are offered?", "What are the placement statistics?"].map((question) => (
+              <Link 
+                key={question}
+                href={`/chat?q=${encodeURIComponent(question)}`}
+                className="block rounded-md p-2 text-sm hover:bg-accent"
+              >
+                {question}
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 

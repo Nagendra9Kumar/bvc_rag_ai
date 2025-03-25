@@ -2,6 +2,12 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
 import { ChatInterface } from '@/components/chat-interface'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'BVC Assistant - Chat Interface',
+  description: 'Ask questions and get information about BVC Engineering College',
+}
 
 export default async function ChatPage() {
   const { userId } = await auth()
@@ -11,13 +17,14 @@ export default async function ChatPage() {
   }
   
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-b from-background to-muted/30">
       <Navbar />
-      <main className="flex-1">
-        <div className="container mx-auto">
-          <ChatInterface />
-        </div>
+      <main className="flex-1 ">
+        {/* Remove container constraints to give the chat UI full width */}
+        <ChatInterface />
       </main>
+      
+     
     </div>
   )
 }
