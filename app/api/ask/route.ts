@@ -66,7 +66,15 @@ async function generateAnswer(question: string, context: string): Promise<string
 
   const userPrompt = `Context:\n${context}\n\nQuestion: ${question}`;
 
-  return generateText(systemPrompt, userPrompt);
+  try {
+    return await timeoutPromise(
+      generateText(systemPrompt, userPrompt),
+      10000 // 10 second timeout
+    );
+  } catch (error) {
+    console.error("Text generation error:", error);
+    throw new ApiError(500, "Failed to generate response");
+  }
 }
 
 function formatSources(matches: any[]) {
