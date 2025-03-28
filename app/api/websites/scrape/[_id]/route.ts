@@ -9,7 +9,7 @@ import * as cheerio from 'cheerio'
 import { corsHeaders } from '@/lib/cors'
 import { rateLimit } from '@/lib/rate-limit'
 import { pineconeIndex } from '@/lib/pinecone'
-import { getEmbedding } from '@/lib/huggingface'
+import { getEmbedding } from '@/lib/gemini'
 
 // Enhanced rate limiting: 10 requests per 5 minutes per user
 const limiter = rateLimit({
@@ -121,46 +121,64 @@ async function scrapeWebsite(url: string) {
   throw lastError || new Error(`Failed to scrape ${url}`);
 }
 
-// Enhanced embedding creation with batching and error handling
 async function createEmbeddings(websiteId: string, userId: string, content: string, metadata: any) {
   try {
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
-    
+    const textSplitter = new RecursiveCharacterTextSplitter({ chunkSize: 1000, chunkOverlap: 200 });
     const textChunks = await textSplitter.splitText(content);
     console.log(`📄 Created ${textChunks.length} chunks from content`);
-    
-    const vectors = [];
-    const batchSize = 100;
-    
-    for (let i = 0; i < textChunks.length; i++) {
-      const chunk = textChunks[i];
+
+    const batchSize = 5; // Adjust based on API limits
+    interface PineconeVector {
+      id: string;
+      values: number[];
+      metadata: {
+      text: string;
+      userId: string;
+      websiteId: string;
+      chunkIndex: number;
+      title?: string;
+      description?: string;
+      url?: string;
+      source?: string;
+      sourceId?: string;
+      [key: string]: any;
+      };
+    }
+
+    let vectors: PineconeVector[] = [];
+
+    for (let i = 0; i < textChunks.length; i += batchSize) {
+      const batch = textChunks.slice(i, i + batchSize);
+
       try {
-        const embeddingVector = await getEmbedding(chunk);
-        vectors.push({
-          id: `${websiteId}-chunk-${i}`,
-          values: embeddingVector,
-          metadata: {
-            text: chunk,
-            userId,
-            websiteId,
-            chunkIndex: i,
-            ...metadata
-          },
+        const embeddingVectors = await Promise.all(batch.map(chunk => getEmbedding(chunk)));
+
+        interface ChunkMetadata {
+          text: string;
+          userId: string;
+          websiteId: string;
+          chunkIndex: number;
+          [key: string]: any;
+        }
+
+        embeddingVectors.forEach((vector: number[], index: number) => {
+          vectors.push({
+            id: `${websiteId}-chunk-${i + index}`,
+            values: vector,
+            metadata: { text: batch[index], userId, websiteId, chunkIndex: i + index, ...metadata } as ChunkMetadata,
+          });
         });
-        console.log(`✅ Generated embedding for chunk ${i + 1}/${textChunks.length}`);
+
+        console.log(`✅ Generated embeddings for batch ${i / batchSize + 1}/${Math.ceil(textChunks.length / batchSize)}`);
       } catch (error) {
-        console.error(`❌ Error generating embedding for chunk ${i}:`, error);
+        console.error(`❌ Error generating embedding batch ${i / batchSize + 1}:`, error);
         throw error;
       }
     }
 
-    // Batch upsert vectors to Pinecone
+    // Batch upload to Pinecone
     for (let i = 0; i < vectors.length; i += batchSize) {
-      const batch = vectors.slice(i, i + batchSize);
-      await pineconeIndex.upsert(batch);
+      await pineconeIndex.upsert(vectors.slice(i, i + batchSize));
       console.log(`📤 Uploaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectors.length / batchSize)}`);
     }
 

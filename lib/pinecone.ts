@@ -10,6 +10,6 @@ const pinecone = new Pinecone({
 })
 
 // Connect to the specific index with exact configuration
-export const pineconeIndex = pinecone.index('bvc-rag-index')
+export const pineconeIndex = pinecone.index(process.env.PINECONE_INDEX || 'default-index')
 
 export default pinecone

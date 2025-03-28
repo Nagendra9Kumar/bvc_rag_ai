@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
     const website_contentsCollection = db.collection("website_contents");
+    const websitesCollection = db.collection("websites");
 
     // Get websites to be deleted
     const websites = await website_contentsCollection 
@@ -64,9 +65,19 @@ export async function POST(request: NextRequest) {
     }
     
     // Delete all websites
-    const deleteResult = await website_contentsCollection.deleteMany({ createdBy: userId });
+    const deleteResult = await website_contentsCollection.deleteMany();
     console.log(`✨ Deleted ${deleteResult.deletedCount} websites`);
-
+    // Update status
+    
+    try {
+      await websitesCollection.updateMany(
+      {},
+      { $set: { status: "unknown" } }
+      );
+    } catch (error) {
+      console.error("❌ Error updating website status:", error);
+    }
+    console.log(`✨ Updated status of websites to "unknown"`);
     return NextResponse.json({ 
       message: "All websites deleted successfully", 
       summary: {

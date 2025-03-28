@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { pineconeIndex } from "@/lib/pinecone";
-import { getEmbedding } from '@/lib/huggingface';
+import { getEmbedding } from '@/lib/gemini';
 import { generateText } from "@/lib/openrouter";
 import { z } from "zod";
 
@@ -69,7 +69,7 @@ async function generateAnswer(question: string, context: string): Promise<string
   try {
     return await timeoutPromise(
       generateText(systemPrompt, userPrompt),
-      10000 // 10 second timeout
+      30000 // 30 second timeout
     );
   } catch (error) {
     console.error("Text generation error:", error);
@@ -108,12 +108,12 @@ export async function POST(req: NextRequest) {
       throw new ApiError(500, "Failed to generate embedding due to timeout");
     });
 
-    // Trim embedding to correct size
-    const trimmedEmbedding = embedding.slice(0, 1024);
+  
+  
 
     // Query Pinecone
     const queryResponse = await pineconeIndex.query({
-      vector: trimmedEmbedding,
+      vector: embedding,
       topK,
       includeMetadata: true,
     }).catch((error) => {
