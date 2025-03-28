@@ -6,6 +6,7 @@ import { PageLayout } from '@/components/client/page-layout'
 import { AnimatedCard } from '@/components/client/animated-card'
 import { ButtonWithLoading } from '@/components/client/button-with-loading'
 import { motion } from 'framer-motion'
+import { Button } from './ui/button'
 
 const features = [
   {
@@ -49,11 +50,11 @@ export function HomePage({ isSignedIn }: HomePageProps) {
             No more searching through multiple websites—our AI provides accurate information instantly.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <ButtonWithLoading asChild>
+            <Button asChild={true}>
               <Link href="/chat" className="inline-flex items-center gap-2" aria-label="Start chatting with the AI assistant">
                 Start Chatting <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-            </ButtonWithLoading>
+            </Button>
             {!isSignedIn && (
               <ButtonWithLoading asChild variant="outline">
                 <Link href="/sign-in">Sign In</Link>
@@ -62,14 +63,14 @@ export function HomePage({ isSignedIn }: HomePageProps) {
           </div>
         </div>
 
-        <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-3">
+        <div className="mx-auto grid justify-center gap-4 px-4 py-8 sm:grid-cols-2 md:max-w-[64rem] md:grid-cols-3 md:py-12">
           {features.map((feature, index) => (
             <AnimatedCard
               key={feature.title}
               delay={index * 0.2}
               className="h-full"
             >
-              <div className="flex h-full flex-col gap-2">
+              <div className="flex h-full flex-col gap-2 p-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                   <feature.icon className="h-6 w-6 text-primary" />
                 </div>
@@ -80,20 +81,6 @@ export function HomePage({ isSignedIn }: HomePageProps) {
           ))}
         </div>
 
-        <div className="mt-12 rounded-lg border bg-card p-6">
-          <h2 className="mb-4 text-xl font-semibold">Popular Questions</h2>
-          <div className="space-y-2">
-            {["How do I apply for admission?", "What courses are offered?", "What are the placement statistics?"].map((question) => (
-              <Link 
-                key={question}
-                href={`/chat?q=${encodeURIComponent(question)}`}
-                className="block rounded-md p-2 text-sm hover:bg-accent"
-              >
-                {question}
-              </Link>
-            ))}
-          </div>
-        </div>
       </section>
 
       <section className="border-t py-12">
@@ -101,12 +88,7 @@ export function HomePage({ isSignedIn }: HomePageProps) {
           <p className="text-sm leading-loose text-muted-foreground">
             © {new Date().getFullYear()} BVC Engineering College. All rights reserved.
           </p>
-          <Link 
-            href="/about" 
-            className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-          >
-            About
-          </Link>
+          
         </div>
       </section>
     </PageLayout>

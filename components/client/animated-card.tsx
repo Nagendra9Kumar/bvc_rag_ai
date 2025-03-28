@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { ErrorBoundary } from 'react-error-boundary'
 import { cn } from '@/lib/utils';
 import { memo } from 'react'
+import { useId } from 'react'
 
 interface AnimatedCardProps extends React.ComponentProps<typeof Card> {
   delay?: number;
@@ -30,10 +31,12 @@ export const AnimatedCard = memo(function AnimatedCard({
   "aria-label": ariaLabel,
   ...props 
 }: AnimatedCardProps) {
+  const id = useId();
+
   if (isLoading) {
     return (
       <Card className={cn("animate-pulse", className)} {...props}>
-        <div className="h-full w-full bg-gray-200 rounded" />
+        <div className="h-full w-full bg-muted/60 rounded-sm min-h-[100px]" />
       </Card>
     );
   }
@@ -56,12 +59,11 @@ export const AnimatedCard = memo(function AnimatedCard({
           scale: tapScale,
           transition: { duration: 0.1 } 
         }}
-        className="will-change-transform"
+        className={cn("will-change-transform", "transform-gpu")}
         role={role}
         aria-label={ariaLabel}
-        layoutId={`card-${delay}`} // For smoother list animations
-        layout="position"
-        viewport={{ once: true }} // Only animate once when in view
+        layoutId={`card-${id}-${delay}`} 
+        viewport={{ once: true }} 
       >
         <Card className={className} {...props}>
           {children}

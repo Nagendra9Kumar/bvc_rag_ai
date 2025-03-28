@@ -98,7 +98,7 @@ export function ChatInterface() {
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto px-4">
+        <div className="flex-1 overflow-y-auto px-4 bg-background">
           {messages.length === 0 ? (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -106,8 +106,8 @@ export function ChatInterface() {
               transition={{ duration: 0.5 }}
               className="h-full flex items-center justify-center"
             >
-              <div className="text-center max-w-md p-6">
-                <h3 className="text-lg font-medium mb-2">Welcome to BVC Assistant</h3>
+              <div className="text-center max-w-md p-6 bg-card/50 rounded-lg shadow-sm">
+                <h3 className="text-lg font-medium mb-2 text-card-foreground">Welcome to BVC Assistant</h3>
                 <p className="text-muted-foreground">Start the conversation!</p>
               </div>
             </motion.div>
@@ -127,7 +127,7 @@ export function ChatInterface() {
                   >
                     {message.role === 'assistant' && (
                       <Avatar className="mt-0.5">
-                        <AvatarFallback className="bg-primary/10 text-primary">
+                        <AvatarFallback className="bg-secondary text-secondary-foreground">
                           <Bot className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
@@ -137,10 +137,10 @@ export function ChatInterface() {
                       animate={{ scale: 1 }}
                       transition={{ duration: 0.2 }}
                       className={cn(
-                        "rounded-lg px-4 py-2.5 max-w-[85%]",
+                        "rounded-lg px-4 py-2.5 max-w-[85%] shadow-sm border",
                         message.role === 'assistant' 
-                          ? "bg-muted/50" 
-                          : "bg-primary text-primary-foreground"
+                          ? "bg-card text-card-foreground border-border/30" 
+                          : "bg-primary/90 text-primary-foreground border-primary/20"
                       )}
                     >
                       <div className="prose dark:prose-invert prose-sm">
@@ -159,7 +159,7 @@ export function ChatInterface() {
                     </motion.div>
                     {message.role === 'user' && (
                       <Avatar className="mt-0.5">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
+                        <AvatarFallback className="bg-accent text-accent-foreground">
                           <User className="h-4 w-4" />
                         </AvatarFallback>
                         {user?.imageUrl && (
@@ -180,16 +180,16 @@ export function ChatInterface() {
                     className="flex items-start gap-3"
                   >
                     <Avatar className="mt-0.5">
-                      <AvatarFallback className="bg-primary/10 text-primary">
+                      <AvatarFallback className="bg-secondary text-secondary-foreground">
                         <Bot className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
                     <motion.div 
                       animate={{ 
-                        scale: [1, 1.02, 1],
+                        scale: [1, 1.01, 1],
                         transition: { duration: 2, repeat: Infinity }
                       }}
-                      className="bg-muted/50 rounded-lg px-4 py-2.5"
+                      className="bg-card/80 border border-border/30 rounded-lg px-4 py-2.5 shadow-sm"
                     >
                       <div className="prose dark:prose-invert prose-sm">
                         BVC Assistant is thinking...
@@ -203,7 +203,7 @@ export function ChatInterface() {
           )}
         </div>
         
-        <div className="border-t bg-background p-4">
+        <div className="border-t bg-card/50 p-4 shadow-sm">
           <div className="max-w-3xl mx-auto">
             <form onSubmit={handleSubmit} className="flex items-center gap-2">
               <Input
@@ -213,13 +213,13 @@ export function ChatInterface() {
                 onKeyDown={handleKeyDown}
                 disabled={isProcessing}
                 ref={inputRef}
-                className="flex-1"
+                className="flex-1 bg-background border-input"
               />
               <ButtonWithLoading
                 type="submit"
                 disabled={!input.trim() || isProcessing}
                 isLoading={isProcessing}
-                className='h-10 w-10 p-0 rounded-full'
+                className='h-10 w-10 p-0 rounded-full shadow-sm'
                 loadingText="Sending..."
                 variant="ghost"
               >
