@@ -4,7 +4,8 @@ import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { ReactNode } from "react";
 
 export async function AdminOnly({ children }: { children: ReactNode }) {
-  const { isAdmin, isLoading } = await useRoleAuth();
+  const { role, isLoading } = await useRoleAuth();
+  const isAdmin = role === 'admin';
 
   if (isLoading) {
     return null;

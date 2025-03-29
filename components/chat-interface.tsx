@@ -220,11 +220,10 @@ export function ChatInterface() {
                 disabled={!input.trim() || isProcessing}
                 isLoading={isProcessing}
                 className='h-10 w-10 p-0 rounded-full shadow-sm'
-                loadingText="Sending..."
                 variant="ghost"
               >
                 {!isProcessing ? <SendHorizontal className="h-4 w-4" /> : null}
-                <span className="sr-only">Send</span>
+               
               </ButtonWithLoading>
             </form>
             <div className="mt-2 text-xs text-muted-foreground text-center">

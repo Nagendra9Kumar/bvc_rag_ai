@@ -1,12 +1,13 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { useToast } from '@/components/ui/use-toast'
 
 const isAdminRoute = createRouteMatcher(['/admin(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
   try {
     const { sessionClaims } = await auth()
-    
+    const { toast } = useToast()
     // Check for admin routes
     if (isAdminRoute(req)) {
       // If not authenticated at all
@@ -23,6 +24,11 @@ export default clerkMiddleware(async (auth, req) => {
           userId: sessionClaims.sub,
           role: sessionClaims?.metadata?.role,
           route: req.url
+        })
+        toast({
+          title: "Access Denied",
+          description: "You do not have administrator privileges",
+          variant: "destructive"
         })
         const url = new URL('/', req.url)
         return NextResponse.redirect(url)
