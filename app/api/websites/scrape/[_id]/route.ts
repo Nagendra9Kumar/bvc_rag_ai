@@ -9,7 +9,7 @@ import * as cheerio from 'cheerio'
 import { corsHeaders } from '@/lib/cors'
 import { rateLimit } from '@/lib/rate-limit'
 import { pineconeIndex } from '@/lib/pinecone'
-import { getEmbedding } from '@/lib/gemini'
+import { getEmbedding } from '@/lib/huggingface'
 
 // Enhanced rate limiting: 10 requests per 5 minutes per user
 const limiter = rateLimit({

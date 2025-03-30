@@ -1,32 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import clientPromise from "@/lib/mongodb";
-import { pineconeIndex } from "@/lib/pinecone";
-import { getEmbedding } from "@/lib/huggingface";
-import { Document } from "@/lib/models/document";
-
-const MAX_CHARS = 1000; // Character limit for each chunk
-
-// Function to split content into smaller chunks
-const chunkText = (text: string, maxChars: number): string[] => {
-  if (text.length <= maxChars) return [text];
-  
-  const chunks: string[] = [];
-  let currentChunk = "";
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  
-  for (const sentence of sentences) {
-    if ((currentChunk + sentence).length <= maxChars) {
-      currentChunk += sentence;
-    } else {
-      if (currentChunk) chunks.push(currentChunk.trim());
-      currentChunk = sentence;
-    }
-  }
-  
-  if (currentChunk) chunks.push(currentChunk.trim());
-  return chunks;
-};
+import { processDocument } from "@/lib/langchain-document-processor";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,69 +10,30 @@ export async function POST(req: NextRequest) {
     }
 
     const { title, content, category } = await req.json();
-    if (!title || !content || !category) {
+    if (!title || !content) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    let textChunks = chunkText(content, MAX_CHARS);
-    let embeddings: number[][] = [];
-
-    // Generate embeddings for each chunk
-    for (let chunk of textChunks) {
-      try {
-        const embedding = await getEmbedding(chunk);
-        embeddings.push(embedding);
-      } catch (error) {
-        console.error("Embedding Error:", error);
-        return NextResponse.json(
-          { error: "Failed to generate embeddings" },
-          { status: 500 }
-        );
-      }
-    }
-
-    // Save document to MongoDB
-    const client = await clientPromise;
-    const db = client.db();
-    
-    const doc: Document = {
+    // Process document with LangChain
+    const result = await processDocument({
       title,
       content,
       category,
       userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: userId,
-    };
+    });
 
-    const result = await db.collection("documents").insertOne(doc);
-    const documentId = result.insertedId.toString();
+    return NextResponse.json({ 
+      success: true, 
+      chunksProcessed: result.chunksProcessed 
+    });
 
-    // Store vectors in Pinecone with 1024-dimensional embeddings
-    await Promise.all(
-      embeddings.map((embedding, index) =>
-        pineconeIndex.upsert([
-          {
-            id: `${documentId}-${index}`,
-            values: embedding,
-            metadata: {
-              mongoId: documentId,
-              chunk: index,
-              text: textChunks[index],
-            },
-          },
-        ])
-      )
-    );
-
-    return NextResponse.json({ id: documentId });
   } catch (error) {
-    console.error(error);
+    console.error("Error processing document:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to process document" },
       { status: 500 }
     );
   }
