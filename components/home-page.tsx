@@ -7,6 +7,7 @@ import { AnimatedCard } from '@/components/client/animated-card'
 import { ButtonWithLoading } from '@/components/client/button-with-loading'
 import { motion } from 'framer-motion'
 import { Button } from './ui/button'
+import { GooeyText } from './home/gooey'
 
 const features = [
   {
@@ -41,9 +42,16 @@ export function HomePage({ isSignedIn }: HomePageProps) {
             transition={{ duration: 0.5 }}
             className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl"
           >
-            BVC Engineering College
+           <div className="flex items-center justify-center">
+              <GooeyText
+                texts={["BVC","AI", "Assistant"]}
+                morphTime={1}
+                cooldownTime={0.25}
+                className="font-bold"
+              />
+           </div>
             <br />
-            <span className="text-primary">Knowledge Base</span>
+            {/* <span className="text-primary">Knowledge Base</span> */}
           </motion.h1>
           <p className="max-w-[42rem] leading-normal text-muted-foreground sm:text-xl sm:leading-8">
             Get instant answers about admissions, courses, faculty, campus facilities, and more at BVC Engineering College, Odalarevu.
