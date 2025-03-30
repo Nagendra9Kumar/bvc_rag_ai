@@ -57,7 +57,7 @@ export function Navbar() {
         <Sheet>
           <SheetTrigger asChild className="md:hidden">
             <Button variant="ghost" size="icon" className="shrink-0">
-              <Menu className='h-6 w-6' />
+              <Menu size={16} strokeWidth={2} />
               <span className="sr-only">Toggle menu</span>
             </Button>
           </SheetTrigger>
@@ -91,7 +91,7 @@ export function Navbar() {
           </SheetContent>
         </Sheet>
         
-        <Link href="/" className="mr-6 flex items-center space-x-2">
+        <Link href="/" className="mr-6 flex items-center space-x-2 md:mr-6 absolute left-1/2 -translate-x-1/2 md:relative md:left-0 md:translate-x-0">
           <span className="font-bold text-xl">BVC</span>
         </Link>
 
