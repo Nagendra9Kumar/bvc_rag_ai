@@ -349,7 +349,6 @@ export function WebsiteList() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleScrapeWebsite(website._id)}
-                          disabled={scrapingWebsites.has(website._id) || ['scraping', 'embedding', 'processing', 'pending'].includes(website.status?.toLowerCase())}
                           className="relative"
                         >
                           <RotateCw className={`h-4 w-4 ${scrapingWebsites.has(website._id) ? 'animate-spin' : ''}`} />

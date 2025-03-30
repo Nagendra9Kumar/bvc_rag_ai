@@ -4,13 +4,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { UserButton, SignInButton, useAuth } from '@clerk/nextjs'
-import { Menu, MenuSquare, Moon, Sun } from 'lucide-react'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
