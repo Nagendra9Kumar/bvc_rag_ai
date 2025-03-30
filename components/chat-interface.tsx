@@ -96,7 +96,8 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] sm:h-auto md:h-[80vh] lg:h-[calc(100vh-6rem)]
+ overflow-hidden">
       <div className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto px-4 bg-background">
           {messages.length === 0 ? (
