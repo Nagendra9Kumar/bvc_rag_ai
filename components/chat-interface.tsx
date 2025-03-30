@@ -5,12 +5,13 @@ import { SendHorizontal, Bot, User } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { useUser } from '@clerk/nextjs'
 import { format } from 'date-fns'
+import ReactMarkdown from 'react-markdown'
 import { ButtonWithLoading } from '@/components/client/button-with-loading'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
-import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Message {
   id: string
@@ -142,8 +143,15 @@ export function ChatInterface() {
                         : "bg-primary/90 text-primary-foreground border-primary/20"
                     )}
                   >
-                    <div className="prose dark:prose-invert prose-sm">
-                      {message.content}
+                    <div className={cn(
+                      "prose dark:prose-invert prose-sm",
+                      message.role === 'assistant' ? "prose-headings:text-card-foreground prose-a:text-primary" : "prose-headings:text-primary-foreground prose-a:text-primary-foreground"
+                    )}>
+                      {message.role === 'assistant' ? (
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      ) : (
+                        message.content
+                      )}
                     </div>
                     {message.timestamp && (
                       <div className={cn(
@@ -180,7 +188,7 @@ export function ChatInterface() {
                 >
                   <Avatar className="mt-0.5">
                     <AvatarFallback className="bg-secondary text-secondary-foreground">
-                      <Bot className="h-4 w-4" />
+                      <Bot size={20} />
                     </AvatarFallback>
                   </Avatar>
                   <motion.div 
