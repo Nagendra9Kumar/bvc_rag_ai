@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { Inter } from 'next/font/google'
 import { ScrollToTop } from '@/components/ui/scroll-to-top'
 import './globals.css'
+import { Navbar } from '@/components/navbar'
 
 // Use Inter as the default font
 const inter = Inter({ 
@@ -36,6 +37,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <div className="relative flex min-h-screen flex-col">
+              <Navbar />
               {children}
             </div>
             <Toaster />

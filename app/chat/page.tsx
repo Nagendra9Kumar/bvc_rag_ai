@@ -17,10 +17,8 @@ export default async function ChatPage() {
   }
   
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-b from-background to-muted/30">
-      <Navbar />
+    
       <ChatInterface />
-      
-    </div>
+   
   )
 }

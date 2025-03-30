@@ -16,7 +16,12 @@ import { Button } from '@/components/ui/button'
 import { useRoleAuth } from "@/hooks/useRoleAuth";
 import { routes } from "@/config/routes";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+
+// Store initial load state in a module-scoped variable
+let initialLoadCompleted = false;
+// Store route permissions once they're loaded
+let cachedPermissions: Record<string, boolean> = {};
 
 const linkStyles = {
   active: "text-foreground",
@@ -29,27 +34,59 @@ export function Navbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { isSignedIn } = useAuth();
+  const [initialLoadComplete, setInitialLoadComplete] = useState(initialLoadCompleted);
   
   // Use a slightly longer debounce to avoid UI flickering
   const { hasPermission, isLoading } = useRoleAuth(500);
 
+  // Track when initial loading completes and cache permissions
+  useEffect(() => {
+    if (!isLoading && !initialLoadComplete) {
+      // When initial load completes
+      setInitialLoadComplete(true);
+      initialLoadCompleted = true; // Update the module-scoped variable too
+      
+      // Small delay to ensure permissions are fully loaded before caching
+      setTimeout(() => {
+        // Cache permissions for all routes
+        routes.forEach(route => {
+          if (route.requiredRole) {
+            cachedPermissions[route.requiredRole] = hasPermission(route.requiredRole);
+          }
+        });
+      }, 100);
+    }
+  }, [isLoading, initialLoadComplete, hasPermission]);
+
   // Memoize the filtered routes to avoid unnecessary re-renders
   const visibleRoutes = useMemo(() => {
+    // If we've already completed initial load
+    if (initialLoadComplete) {
+      return routes.filter(route => {
+        if (route.requiredRole) {
+          // First try cached permission, if it's false then check again with hasPermission
+          // This ensures we don't lose admin routes if caching happened too early
+          return cachedPermissions[route.requiredRole] || hasPermission(route.requiredRole);
+        }
+        return true;
+      });
+    }
+    
+    // Otherwise, use the standard filtering logic
     return routes.filter(route => {
-      // If route requires a role
       if (route.requiredRole) {
-        if (isLoading) {
-          // During loading, hide routes that require permissions
+        if (isLoading && !initialLoadComplete) {
           return false;
         }
-        // After loading, show routes only if user has permission
         return hasPermission(route.requiredRole);
       }
-      // Routes without required roles are always visible
       return true;
     });
-  }, [routes, hasPermission, isLoading]);
+  }, [routes, hasPermission, isLoading, initialLoadComplete]);
 
+  // Only show skeletons during initial load (not during navigation)
+  const showSkeletons = isLoading && !initialLoadComplete;
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <nav className="container flex h-16 items-center">
@@ -65,8 +102,8 @@ export function Navbar() {
               {/* <SheetTitle></SheetTitle> */}
             </SheetHeader>
             <div className="flex flex-col gap-2">
-              {isLoading ? (
-                // Show skeleton loaders while loading
+              {showSkeletons ? (
+                // Show skeleton loaders only during initial loading
                 Array(3).fill(0).map((_, i) => (
                   <Skeleton key={i} className="h-8 w-full" />
                 ))
@@ -95,8 +132,8 @@ export function Navbar() {
         </Link>
 
         <div className="hidden md:flex md:gap-6 lg:gap-8 justify-center flex-1">
-          {isLoading ? (
-            // Show skeleton loaders while loading
+          {showSkeletons ? (
+            // Show skeleton loaders only during initial loading
             <div className="flex gap-6 lg:gap-8">
               {Array(3).fill(0).map((_, i) => (
                 <Skeleton key={i} className="h-6 w-20" />
@@ -125,7 +162,7 @@ export function Navbar() {
           )}
         </div>
         
-        {/* Rest of your navbar code remains the same */}
+        {/* Rest of your navbar code remains unchanged */}
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
