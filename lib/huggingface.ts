@@ -17,25 +17,38 @@ if (isBuild) {
 }
 
 /**
- * Get text embeddings using Hugging Face inference API.
+ * Get text embeddings using Hugging Face inference API with retry logic.
  */
-export const getEmbedding = async (text: string): Promise<number[]> => {
-  try {
-    const response = await hf.featureExtraction({
-      model: "BAAI/bge-large-en-v1.5", // This model produces 1024-dim vectors
-      inputs: text,
-    });
+export const getEmbedding = async (text: string, retries = 3): Promise<number[]> => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await hf.featureExtraction({
+        model: "BAAI/bge-large-en-v1.5", // This model produces 1024-dim vectors
+        inputs: text,
+      });
 
-    if (!Array.isArray(response)) {
-      throw new Error("Expected an array response from the embedding API.");
+      if (!Array.isArray(response)) {
+        throw new Error("Expected an array response from the embedding API.");
+      }
+
+      const trimmedEmbedding = Array.isArray(response[0]) ? (response[0] as number[]).slice(0, 1024) : (response as number[]).slice(0, 1024);
+      return trimmedEmbedding;
+    } catch (error: any) {
+      console.error(`Embedding error (attempt ${attempt}/${retries}):`, error);
+      
+      // If this is the last attempt, throw the error
+      if (attempt === retries) {
+        throw new Error(`Failed to get embedding after ${retries} attempts: ${error.message}`);
+      }
+      
+      // Wait before retrying (exponential backoff)
+      const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10 seconds
+      console.log(`⏳ Retrying in ${waitTime}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-
-    const trimmedEmbedding = Array.isArray(response[0]) ? (response[0] as number[]).slice(0, 1024) : (response as number[]).slice(0, 1024);
-    return trimmedEmbedding;
-  } catch (error) {
-    console.error("Embedding error:", error);
-    throw new Error("Failed to get embedding.");
   }
+  
+  throw new Error("Failed to get embedding.");
 };
 
 export default hf;

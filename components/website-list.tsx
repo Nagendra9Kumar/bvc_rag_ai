@@ -50,6 +50,7 @@ export function WebsiteList() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [scrapingWebsites, setScrapingWebsites] = useState<Set<string>>(new Set())
+  const [isScrapingAll, setIsScrapingAll] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -170,6 +171,59 @@ export function WebsiteList() {
     }
   };
 
+  const handleScrapeAll = async () => {
+    if (isScrapingAll || websites.length === 0) return;
+    
+    setIsScrapingAll(true);
+    
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      
+      // Scrape websites sequentially with a small delay between each
+      for (const website of websites) {
+        try {
+          const response = await fetch(`/api/websites/scrape/${website._id}`, {
+            method: 'POST',
+          });
+          
+          if (response.ok) {
+            successCount++;
+            // Update status optimistically
+            setWebsites(prev => prev.map(site => 
+              site._id === website._id 
+                ? { ...site, status: 'pending', statusDetails: { progress: { current: 0, total: 100, phase: 'starting' } } }
+                : site
+            ));
+          } else {
+            failCount++;
+          }
+          
+          // Small delay between requests to avoid overwhelming the server
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          failCount++;
+        }
+      }
+      
+      toast({
+        title: 'Scraping Initiated',
+        description: `Started scraping ${successCount} website(s)${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+      });
+      
+      // Fetch updated statuses
+      setTimeout(fetchWebsites, 2000);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to initiate scraping',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsScrapingAll(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'active':
@@ -239,6 +293,35 @@ export function WebsiteList() {
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
+            <Button 
+              variant="default"
+              disabled={isScrapingAll || websites.length === 0}
+              className="flex items-center gap-2"
+            >
+              <RotateCw className={`h-4 w-4 ${isScrapingAll ? 'animate-spin' : ''}`} />
+              Scrape All
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Scrape All Websites</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to scrape all {websites.length} website(s)? This will start the scraping process for each website sequentially.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleScrapeAll}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Scrape All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
             <Button variant="destructive">Delete All</Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
@@ -306,7 +389,7 @@ export function WebsiteList() {
                           <span className="max-w-[200px] lg:max-w-[400px] truncate">
                             {website.url}
                           </span>
-                          <ExternalLink className="h-4 w-4 flex-shrink-0" />
+                          <ExternalLink className="h-4 w-4 shrink-0" />
                         </a>
                       </div>
                     </TableCell>
