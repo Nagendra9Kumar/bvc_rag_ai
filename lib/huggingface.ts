@@ -1,11 +1,20 @@
 import { HfInference } from "@huggingface/inference";
 
+// Check if we're in a build environment
+const isBuild = process.env.NODE_ENV === 'production' && !process.env.HUGGING_FACE_API_KEY
 
-if (!process.env.HUGGING_FACE_API_KEY) {
-  throw new Error("Missing Hugging Face API key");
+let hf: HfInference
+
+if (isBuild) {
+  // During build time, create a mock instance
+  hf = {} as HfInference
+} else {
+  if (!process.env.HUGGING_FACE_API_KEY) {
+    throw new Error("Missing Hugging Face API key");
+  }
+  
+  hf = new HfInference(process.env.HUGGING_FACE_API_KEY);
 }
-
-const hf = new HfInference(process.env.HUGGING_FACE_API_KEY);
 
 /**
  * Get text embeddings using Hugging Face inference API.

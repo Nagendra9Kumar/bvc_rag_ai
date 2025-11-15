@@ -228,7 +228,7 @@ export async function queryRag(question: string, topK: number = 5) {
       // Get relevant documents
       logger.debug(STAGE, `Retrieving top ${topK} relevant documents`);
       const startTime = Date.now();
-      const context = await retriever.getRelevantDocuments(question);
+      const context = await retriever.invoke(question);
       logger.debug(STAGE, `Retrieved ${context.length} documents in ${Date.now() - startTime}ms`);
       
       // Check if documents were found
