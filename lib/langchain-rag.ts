@@ -131,13 +131,17 @@ export const createRagChain = () => {
     logger.debug(STAGE, `Initializing LLM with model: ${modelOptions[0]}`);
     
     // Validate API key format
-    if (process.env.OPENROUTER_API_KEY.trim() === "" || 
-        process.env.OPENROUTER_API_KEY.length < 10) {
-      throw new Error("OPENROUTER_API_KEY appears to be invalid");
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey || apiKey.trim() === "" || apiKey.length < 10) {
+      throw new Error("OPENROUTER_API_KEY appears to be invalid or not set");
     }
     
+    // Set as OPENAI_API_KEY for ChatOpenAI to use
+    process.env.OPENAI_API_KEY = apiKey;
+    
+    logger.debug(STAGE, "API key validated, creating ChatOpenAI instance");
+    
     const model = new ChatOpenAI({
-      openAIApiKey: process.env.OPENROUTER_API_KEY,
       modelName: modelOptions[0],
       temperature: 0.7,
       maxTokens: 500, // Reduced from 1000 for faster responses
