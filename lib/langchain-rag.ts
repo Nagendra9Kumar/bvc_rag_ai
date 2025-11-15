@@ -121,14 +121,14 @@ export const createRagChain = () => {
     
     // Array of models to try in order (fallback strategy)
     const modelOptions = [
-      "openai/gpt-5-mini",
-      "deepseek/deepseek-r1-distill-llama-70b:free",
+      "openai/gpt-4o-mini",  // Updated to correct model name
       "openai/gpt-3.5-turbo",
-      "anthropic/claude-instant-v1"
+      "meta-llama/llama-3.1-8b-instruct:free",
+      "google/gemini-flash-1.5"
     ];
     
     // LLM - Add validation for API key format
-    logger.debug(STAGE, `Initializing LLM with model: ${modelOptions[0]}`);
+    logger.info(STAGE, `Initializing LLM with model: ${modelOptions[0]}`);
     
     // Validate API key format
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -143,30 +143,41 @@ export const createRagChain = () => {
     
     const model = new ChatOpenAI({
       modelName: modelOptions[0],
-      temperature: 0.7,
-      maxTokens: 500, // Reduced from 1000 for faster responses
-      timeout: 15000, // 15 second timeout
+      temperature: 0.5, // Reduced for more focused, faster responses
+      maxTokens: 300, // Reduced from 500 for faster generation
+      timeout: 25000, // 25 second timeout for the LLM
       configuration: {
         baseURL: "https://openrouter.ai/api/v1",
+        defaultHeaders: {
+          "HTTP-Referer": "https://github.com/bvc-rag-ai", // Optional: for OpenRouter analytics
+          "X-Title": "BVC RAG AI"
+        }
       }
     });
+    
+    logger.info(STAGE, "ChatOpenAI instance created successfully");
    
     
 
     // Prompt template
     logger.debug(STAGE, "Creating prompt template");
     const promptTemplate = PromptTemplate.fromTemplate(`
-      You are an AI assistant for BVC Engineering College, Odalarevu.
-      Answer questions based on the provided context.
-      If no context is available or you're unsure, let the user know.
-      
-      Context:
-      {context}
-      
-      Question: {question}
-      
-      Answer:
-    `);
+You are a friendly and helpful AI assistant for BVC Engineering College, Odalarevu.
+
+Instructions:
+- Answer questions based on the context provided
+- Be warm, professional, and conversational
+- Keep answers brief but informative (2-3 sentences)
+- If the context doesn't contain the answer, politely say you don't have that specific information and suggest contacting the college directly
+- Never say "I don't know" - instead say "I don't have that specific information in my knowledge base"
+- Always be helpful and encouraging
+
+Context: {context}
+
+Question: {question}
+
+Answer:`
+    );
 
     // RAG chain
     logger.debug(STAGE, "Building RAG chain sequence");
@@ -200,7 +211,7 @@ async function withTimeout<T>(
 }
 
 // Main RAG function
-export async function queryRag(question: string, topK: number = 3) {
+export async function queryRag(question: string, topK: number = 2) {
   const STAGE = "RAG_QUERY";
   logger.info(STAGE, `Processing query: "${question.substring(0, 50)}${question.length > 50 ? '...' : ''}"`);
   
@@ -241,7 +252,7 @@ export async function queryRag(question: string, topK: number = 3) {
       logger.debug(STAGE, "Retrieving vector store");
       const vectorStore = await withTimeout(
         getVectorStore(),
-        20000, // 20 second timeout
+        15000, // 15 second timeout for vector store
         "Vector store retrieval timed out"
       );
       const retriever = vectorStore.asRetriever({ k: topK });
@@ -251,7 +262,7 @@ export async function queryRag(question: string, topK: number = 3) {
       const startTime = Date.now();
       const context = await withTimeout(
         retriever.invoke(question),
-        15000, // 15 second timeout
+        12000, // 12 second timeout for document retrieval
         "Document retrieval timed out"
       );
       logger.debug(STAGE, `Retrieved ${context.length} documents in ${Date.now() - startTime}ms`);
@@ -273,10 +284,28 @@ export async function queryRag(question: string, topK: number = 3) {
       const chainStartTime = Date.now();
       const answer = await withTimeout(
         ragChain.invoke({ context, question }),
-        20000, // 20 second timeout for LLM
+        20000, // 20 second timeout for LLM response
         "LLM response timed out"
       );
       logger.debug(STAGE, `Generated answer in ${Date.now() - chainStartTime}ms`);
+      logger.info(STAGE, `LLM returned answer of length: ${typeof answer === 'string' ? answer.length : 'not a string'}`);
+      logger.debug(STAGE, `Answer preview: ${typeof answer === 'string' ? answer.substring(0, 100) : JSON.stringify(answer)}`);
+      
+      // Validate that we got an answer
+      if (!answer || (typeof answer === 'string' && answer.trim() === '')) {
+        logger.warn(STAGE, "LLM returned empty answer, using fallback");
+        return {
+          answer: "I apologize, but I'm having trouble generating a response right now. The system found relevant documents but couldn't process them. Please try asking your question again.",
+          sources: context.map(doc => {
+            const metadata = doc.metadata;
+            return {
+              title: metadata.title || "[No title]",
+              description: metadata.description || "[No description]",
+              score: metadata.score || 0,
+            };
+          }),
+        };
+      }
       
       // Format sources
       logger.debug(STAGE, "Formatting sources");
