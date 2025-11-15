@@ -2,11 +2,11 @@ import { ChatOpenAI } from "@langchain/openai";
 import { PineconeStore } from "@langchain/pinecone";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { HuggingFaceInferenceEmbeddings } from "@langchain/community/embeddings/hf";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { Document } from "langchain/document";
+import { Document } from "@langchain/core/documents";
 
 // Enhanced logging utility with process stages
 const logger = {

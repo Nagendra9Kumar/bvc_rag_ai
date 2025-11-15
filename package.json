@@ -14,77 +14,17 @@
     "@clerk/nextjs": "latest",
     "@google/genai": "latest",
     "@google/generative-ai": "latest",
-
     "@hookform/resolvers": "latest",
-
     "@huggingface/inference": "latest",
     "@huggingface/transformers": "latest",
-
     "@langchain/community": "latest",
     "@langchain/core": "latest",
     "@langchain/openai": "latest",
     "@langchain/pinecone": "latest",
-    "langchain": "latest",
-
-    "@pinecone-database/pinecone": "latest",
-
+    "@langchain/textsplitters": "^1.0.0",
     "@mongodb-js/zstd": "latest",
-    "mongodb": "latest",
-    "mongodb-client-encryption": "latest",
-    "snappy": "latest",
-    "kerberos": "latest",
-    "socks": "latest",
-    "gcp-metadata": "latest",
-
+    "@pinecone-database/pinecone": "latest",
     "@prisma/client": "latest",
-
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-
-    "next-auth": "latest",
-    "next-themes": "latest",
-
-    "openai": "latest",
-
-    "axios": "latest",
-    "cheerio": "latest",
-
-    "clsx": "latest",
-    "class-variance-authority": "latest",
-    "cmdk": "latest",
-
-    "date-fns": "latest",
-    "dotenv": "latest",
-
-    "embla-carousel-react": "latest",
-
-    "framer-motion": "latest",
-    "lucide-react": "latest",
-
-    "ml-pca": "latest",
-
-    "puppeteer": "latest",
-
-    "react-beautiful-dnd": "latest",
-    "react-day-picker": "latest",
-    "react-dropzone": "latest",
-    "react-error-boundary": "latest",
-    "react-hook-form": "latest",
-    "react-markdown": "latest",
-    "react-resizable-panels": "latest",
-
-    "recharts": "latest",
-
-    "swr": "latest",
-    "sonner": "latest",
-
-    "tailwind-merge": "latest",
-    "tailwindcss-animate": "latest",
-
-    "vaul": "latest",
-    "zod": "latest",
-
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
     "@radix-ui/react-aspect-ratio": "latest",
@@ -111,13 +51,54 @@
     "@radix-ui/react-toast": "latest",
     "@radix-ui/react-toggle": "latest",
     "@radix-ui/react-toggle-group": "latest",
-    "@radix-ui/react-tooltip": "latest"
+    "@radix-ui/react-tooltip": "latest",
+    "@tailwindcss/postcss": "^4.1.17",
+    "axios": "latest",
+    "cheerio": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "cmdk": "latest",
+    "date-fns": "latest",
+    "dotenv": "latest",
+    "embla-carousel-react": "latest",
+    "framer-motion": "latest",
+    "gcp-metadata": "latest",
+    "kerberos": "latest",
+    "langchain": "latest",
+    "lucide-react": "latest",
+    "ml-pca": "latest",
+    "mongodb": "latest",
+    "mongodb-client-encryption": "latest",
+    "nanoid": "^5.1.6",
+    "next": "latest",
+    "next-auth": "latest",
+    "next-themes": "latest",
+    "openai": "latest",
+    "puppeteer": "latest",
+    "react": "latest",
+    "react-beautiful-dnd": "latest",
+    "react-day-picker": "latest",
+    "react-dom": "latest",
+    "react-dropzone": "latest",
+    "react-error-boundary": "latest",
+    "react-hook-form": "latest",
+    "react-markdown": "latest",
+    "react-resizable-panels": "latest",
+    "recharts": "latest",
+    "snappy": "latest",
+    "socks": "latest",
+    "sonner": "latest",
+    "swr": "latest",
+    "tailwind-merge": "latest",
+    "tailwindcss-animate": "latest",
+    "vaul": "latest",
+    "zod": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
     "@types/react": "latest",
-    "@types/react-dom": "latest",
     "@types/react-beautiful-dnd": "latest",
+    "@types/react-dom": "latest",
     "postcss": "latest",
     "tailwindcss": "latest",
     "typescript": "latest"

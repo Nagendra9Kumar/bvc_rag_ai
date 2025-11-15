@@ -1,4 +1,4 @@
-import { Document } from "langchain/document";
+import { Document } from "@langchain/core/documents";
 import { getTextSplitter, getVectorStore } from "./langchain-rag";
 import { nanoid } from "nanoid";
 import clientPromise from "@/lib/mongodb";
