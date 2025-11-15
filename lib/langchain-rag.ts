@@ -140,7 +140,8 @@ export const createRagChain = () => {
       openAIApiKey: process.env.OPENROUTER_API_KEY,
       modelName: modelOptions[0],
       temperature: 0.7,
-      maxTokens: 1000,
+      maxTokens: 500, // Reduced from 1000 for faster responses
+      timeout: 15000, // 15 second timeout
       configuration: {
         baseURL: "https://openrouter.ai/api/v1",
       }
@@ -182,8 +183,20 @@ export const createRagChain = () => {
   }
 };
 
+// Helper function to run with timeout
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]);
+}
+
 // Main RAG function
-export async function queryRag(question: string, topK: number = 5) {
+export async function queryRag(question: string, topK: number = 3) {
   const STAGE = "RAG_QUERY";
   logger.info(STAGE, `Processing query: "${question.substring(0, 50)}${question.length > 50 ? '...' : ''}"`);
   
@@ -222,13 +235,21 @@ export async function queryRag(question: string, topK: number = 5) {
       }
       
       logger.debug(STAGE, "Retrieving vector store");
-      const vectorStore = await getVectorStore();
-      const retriever = vectorStore.asRetriever(topK);
+      const vectorStore = await withTimeout(
+        getVectorStore(),
+        20000, // 20 second timeout
+        "Vector store retrieval timed out"
+      );
+      const retriever = vectorStore.asRetriever({ k: topK });
       
-      // Get relevant documents
+      // Get relevant documents with timeout
       logger.debug(STAGE, `Retrieving top ${topK} relevant documents`);
       const startTime = Date.now();
-      const context = await retriever.invoke(question);
+      const context = await withTimeout(
+        retriever.invoke(question),
+        15000, // 15 second timeout
+        "Document retrieval timed out"
+      );
       logger.debug(STAGE, `Retrieved ${context.length} documents in ${Date.now() - startTime}ms`);
       
       // Check if documents were found
@@ -246,7 +267,11 @@ export async function queryRag(question: string, topK: number = 5) {
       
       logger.debug(STAGE, "Invoking RAG chain");
       const chainStartTime = Date.now();
-      const answer = await ragChain.invoke({ context, question });
+      const answer = await withTimeout(
+        ragChain.invoke({ context, question }),
+        20000, // 20 second timeout for LLM
+        "LLM response timed out"
+      );
       logger.debug(STAGE, `Generated answer in ${Date.now() - chainStartTime}ms`);
       
       // Format sources
@@ -288,6 +313,15 @@ export async function queryRag(question: string, topK: number = 5) {
     logger.error(STAGE, "RAG query error:", error);
     
     // Enhanced error handling
+    // Timeout errors
+    if (error.message && error.message.includes("timed out")) {
+      return {
+        answer: "The request took too long to process. This might be due to high server load. Please try again with a simpler question.",
+        sources: [],
+        error: "Request timeout"
+      };
+    }
+    
     // Authentication errors
     if (error.message && (
         error.message.includes("Invalid username or password") ||

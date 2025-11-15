@@ -3,10 +3,14 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { queryRag } from "@/lib/langchain-rag";
 
+// Configure route for longer timeout
+export const maxDuration = 30; // 30 seconds max
+export const dynamic = 'force-dynamic';
+
 // Define request schema
 const requestSchema = z.object({
   question: z.string().min(1, "Question is required"),
-  topK: z.number().min(1).max(10).default(5)
+  topK: z.number().min(1).max(10).default(3) // Reduced from 5 to 3
 });
 
 type ApiResponse = {
@@ -44,7 +48,7 @@ export async function POST(req: NextRequest) {
     
     if (!result.success) {
       return NextResponse.json(
-        { error: result.error.errors[0].message },
+        { error: result.error.issues[0].message },
         { status: 400 }
       );
     }
