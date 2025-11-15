@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,146 +24,167 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
-import { useToast } from '@/components/ui/use-toast'
-import { Search, RefreshCw, ExternalLink, Trash2, AlertCircle, RotateCw } from 'lucide-react'
+} from "@/components/ui/alert-dialog";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Search,
+  RefreshCw,
+  ExternalLink,
+  Trash2,
+  AlertCircle,
+  RotateCw,
+} from "lucide-react";
 
 interface Website {
-  _id: string
-  url: string
-  status: string
+  _id: string;
+  url: string;
+  status: string;
   statusDetails?: {
     progress?: {
-      current: number
-      total: number
-      phase: string
-    }
-  }
-  lastScraped?: string
-  createdAt: string
-  updatedAt: string
+      current: number;
+      total: number;
+      phase: string;
+    };
+  };
+  lastScraped?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function WebsiteList() {
-  const [websites, setWebsites] = useState<Website[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [scrapingWebsites, setScrapingWebsites] = useState<Set<string>>(new Set())
-  const [isScrapingAll, setIsScrapingAll] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
+  const [websites, setWebsites] = useState<Website[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [scrapingWebsites, setScrapingWebsites] = useState<Set<string>>(
+    new Set()
+  );
+  const [isScrapingAll, setIsScrapingAll] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetchWebsites()
-  }, [])
+    fetchWebsites();
+  }, []);
 
   const fetchWebsites = async () => {
     try {
-      const response = await fetch('/api/websites')
+      const response = await fetch("/api/websites");
       if (response.status === 401) {
         // Handle unauthorized access
-        router.push('/sign-in')
-        return
+        router.push("/sign-in");
+        return;
       }
-      if (!response.ok) throw new Error('Failed to fetch websites')
-      const data = await response.json()
-      setWebsites(data)
+      if (!response.ok) throw new Error("Failed to fetch websites");
+      const data = await response.json();
+      setWebsites(data);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to fetch websites',
-        variant: 'destructive',
-      })
+        title: "Error",
+        description: "Failed to fetch websites",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleDelete = async (id: string) => {
     try {
       const response = await fetch(`/api/websites/${id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error('Failed to delete website')
-      
-      setWebsites(prev => prev.filter(site => site._id !== id))
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete website");
+
+      setWebsites((prev) => prev.filter((site) => site._id !== id));
       toast({
-        title: 'Success',
-        description: 'Website deleted successfully',
-      })
+        title: "Success",
+        description: "Website deleted successfully",
+      });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to delete website',
-        variant: 'destructive',
-      })
+        title: "Error",
+        description: "Failed to delete website",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   const handleDeleteAll = async () => {
     try {
-      const response = await fetch('/api/websites/delete-all', {
-        method: 'POST',
-      })
-      if (!response.ok) throw new Error('Failed to delete websites')
-      
-      const data = await response.json()
-      setWebsites([])
+      const response = await fetch("/api/websites/delete-all", {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to delete websites");
+
+      const data = await response.json();
+      setWebsites([]);
       toast({
-        title: 'Success',
+        title: "Success",
         description: `Successfully deleted ${data.summary.deletedWebsites} websites`,
-      })
-      
-      fetchWebsites()
+      });
+
+      fetchWebsites();
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to delete websites',
-        variant: 'destructive',
-      })
+        title: "Error",
+        description: "Failed to delete websites",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   const handleScrapeWebsite = async (id: string) => {
     if (scrapingWebsites.has(id)) return;
-    
+
     try {
-      setScrapingWebsites(prev => {
+      setScrapingWebsites((prev) => {
         const next = new Set(Array.from(prev));
         next.add(id);
         return next;
       });
       const response = await fetch(`/api/websites/scrape/${id}`, {
-        method: 'POST',
+        method: "POST",
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to start scraping');
+        throw new Error("Failed to start scraping");
       }
-      
+
       toast({
-        title: 'Success',
-        description: 'Started scraping website',
+        title: "Success",
+        description: "Started scraping website",
       });
-      
+
       // Update the website status immediately
-      setWebsites(prev => prev.map(site => 
-        site._id === id 
-          ? { ...site, status: 'pending', statusDetails: { progress: { current: 0, total: 100, phase: 'starting' } } }
-          : site
-      ));
-      
+      setWebsites((prev) =>
+        prev.map((site) =>
+          site._id === id
+            ? {
+                ...site,
+                status: "pending",
+                statusDetails: {
+                  progress: { current: 0, total: 100, phase: "starting" },
+                },
+              }
+            : site
+        )
+      );
+
       // Fetch updated status after a short delay
       setTimeout(fetchWebsites, 2000);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to start scraping',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to start scraping",
+        variant: "destructive",
       });
     } finally {
-      setScrapingWebsites(prev => {
+      setScrapingWebsites((prev) => {
         const next = new Set(Array.from(prev));
         next.delete(id);
         return next;
@@ -173,51 +194,61 @@ export function WebsiteList() {
 
   const handleScrapeAll = async () => {
     if (isScrapingAll || websites.length === 0) return;
-    
+
     setIsScrapingAll(true);
-    
+
     try {
       let successCount = 0;
       let failCount = 0;
-      
+
       // Scrape websites sequentially with a small delay between each
       for (const website of websites) {
         try {
           const response = await fetch(`/api/websites/scrape/${website._id}`, {
-            method: 'POST',
+            method: "POST",
           });
-          
+
           if (response.ok) {
             successCount++;
             // Update status optimistically
-            setWebsites(prev => prev.map(site => 
-              site._id === website._id 
-                ? { ...site, status: 'pending', statusDetails: { progress: { current: 0, total: 100, phase: 'starting' } } }
-                : site
-            ));
+            setWebsites((prev) =>
+              prev.map((site) =>
+                site._id === website._id
+                  ? {
+                      ...site,
+                      status: "pending",
+                      statusDetails: {
+                        progress: { current: 0, total: 100, phase: "starting" },
+                      },
+                    }
+                  : site
+              )
+            );
           } else {
             failCount++;
           }
-          
+
           // Small delay between requests to avoid overwhelming the server
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         } catch (error) {
           failCount++;
         }
       }
-      
+
       toast({
-        title: 'Scraping Initiated',
-        description: `Started scraping ${successCount} website(s)${failCount > 0 ? `. ${failCount} failed.` : ''}`,
+        title: "Scraping Initiated",
+        description: `Started scraping ${successCount} website(s)${
+          failCount > 0 ? `. ${failCount} failed.` : ""
+        }`,
       });
-      
+
       // Fetch updated statuses
       setTimeout(fetchWebsites, 2000);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to initiate scraping',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to initiate scraping",
+        variant: "destructive",
       });
     } finally {
       setIsScrapingAll(false);
@@ -226,48 +257,50 @@ export function WebsiteList() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'active':
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      case 'error':
-      case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-      case 'scraping':
-      case 'embedding':
-      case 'processing':
-      case 'pending':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+      case "active":
+      case "completed":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "error":
+      case "failed":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      case "scraping":
+      case "embedding":
+      case "processing":
+      case "pending":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
     }
-  }
+  };
 
   const getStatusDetails = (website: Website) => {
-    if (!website.statusDetails) return []
-    
-    const details: string[] = []
+    if (!website.statusDetails) return [];
+
+    const details: string[] = [];
     if (website.statusDetails.progress) {
       details.push(
         `Progress: ${website.statusDetails.progress.current}/${website.statusDetails.progress.total} (${website.statusDetails.progress.phase})`
-      )
+      );
     }
     if (website.lastScraped) {
-      details.push(`Last scraped: ${new Date(website.lastScraped).toLocaleString()}`)
+      details.push(
+        `Last scraped: ${new Date(website.lastScraped).toLocaleString()}`
+      );
     }
-    return details
-  }
+    return details;
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
-  const filteredWebsites = websites.filter(site =>
+  const filteredWebsites = websites.filter((site) =>
     site.url.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
   return (
     <div className="space-y-4">
@@ -281,24 +314,30 @@ export function WebsiteList() {
             className="pl-9"
           />
         </div>
-        <Button 
-          onClick={fetchWebsites} 
-          variant="outline" 
+        <Button
+          onClick={fetchWebsites}
+          variant="outline"
           size="sm"
           disabled={isLoading}
           className="flex items-center gap-2 transition-all duration-500 ease-in-out active:scale-95"
         >
-          <RefreshCw className={`h-4 w-4 transition-all duration-500 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            className={`h-4 w-4 transition-all duration-500 ${
+              isLoading ? "animate-spin" : ""
+            }`}
+          />
           <span>Refresh</span>
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button 
+            <Button
               variant="default"
               disabled={isScrapingAll || websites.length === 0}
               className="flex items-center gap-2"
             >
-              <RotateCw className={`h-4 w-4 ${isScrapingAll ? 'animate-spin' : ''}`} />
+              <RotateCw
+                className={`h-4 w-4 ${isScrapingAll ? "animate-spin" : ""}`}
+              />
               Scrape All
             </Button>
           </AlertDialogTrigger>
@@ -306,7 +345,9 @@ export function WebsiteList() {
             <AlertDialogHeader>
               <AlertDialogTitle>Scrape All Websites</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to scrape all {websites.length} website(s)? This will start the scraping process for each website sequentially.
+                Are you sure you want to scrape all {websites.length}{" "}
+                website(s)? This will start the scraping process for each
+                website sequentially.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -328,7 +369,8 @@ export function WebsiteList() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete All Websites</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete all websites? This will remove all website data and cannot be undone.
+                Are you sure you want to delete all websites? This will remove
+                all website data and cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -353,7 +395,9 @@ export function WebsiteList() {
           <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
           <h3 className="mt-4 text-lg font-semibold">No websites found</h3>
           <p className="text-muted-foreground">
-            {searchQuery ? 'Try different search terms' : 'Start by adding some websites'}
+            {searchQuery
+              ? "Try different search terms"
+              : "Start by adding some websites"}
           </p>
         </motion.div>
       ) : (
@@ -396,28 +440,50 @@ export function WebsiteList() {
                     <TableCell>
                       <HoverCard>
                         <HoverCardTrigger>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(website.status)}`}>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              website.status
+                            )}`}
+                          >
                             {website.status || "unknown"}
                           </span>
                         </HoverCardTrigger>
                         <HoverCardContent className="w-80">
                           <div className="space-y-2">
-                            <h4 className="text-sm font-semibold">Status Details</h4>
+                            <h4 className="text-sm font-semibold">
+                              Status Details
+                            </h4>
                             {website.statusDetails?.progress && (
                               <div className="space-y-1">
                                 <div className="flex justify-between text-xs">
-                                  <span>{website.statusDetails.progress.phase}</span>
                                   <span>
-                                    {Math.round((website.statusDetails.progress.current / website.statusDetails.progress.total) * 100)}%
+                                    {website.statusDetails.progress.phase}
+                                  </span>
+                                  <span>
+                                    {Math.round(
+                                      (website.statusDetails.progress.current /
+                                        website.statusDetails.progress.total) *
+                                        100
+                                    )}
+                                    %
                                   </span>
                                 </div>
-                                <Progress 
-                                  value={(website.statusDetails.progress.current / website.statusDetails.progress.total) * 100} 
+                                <Progress
+                                  value={
+                                    (website.statusDetails.progress.current /
+                                      website.statusDetails.progress.total) *
+                                    100
+                                  }
                                 />
                               </div>
                             )}
                             {getStatusDetails(website).map((detail, i) => (
-                              <p key={i} className="text-sm text-muted-foreground">{detail}</p>
+                              <p
+                                key={i}
+                                className="text-sm text-muted-foreground"
+                              >
+                                {detail}
+                              </p>
                             ))}
                           </div>
                         </HoverCardContent>
@@ -434,13 +500,19 @@ export function WebsiteList() {
                           onClick={() => handleScrapeWebsite(website._id)}
                           className="relative"
                         >
-                          <RotateCw className={`h-4 w-4 ${scrapingWebsites.has(website._id) ? 'animate-spin' : ''}`} />
+                          <RotateCw
+                            className={`h-4 w-4 ${
+                              scrapingWebsites.has(website._id)
+                                ? "animate-spin"
+                                : ""
+                            }`}
+                          />
                           <span className="sr-only">Scrape</span>
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="icon"
                               className="relative hover:bg-destructive hover:text-destructive-foreground"
                             >
@@ -450,9 +522,12 @@ export function WebsiteList() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Website</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Delete Website
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete this website? This action cannot be undone.
+                                Are you sure you want to delete this website?
+                                This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -476,5 +551,5 @@ export function WebsiteList() {
         </div>
       )}
     </div>
-  )
+  );
 }
