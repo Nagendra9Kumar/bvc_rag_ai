@@ -121,6 +121,7 @@ export const createRagChain = () => {
     
     // Array of models to try in order (fallback strategy)
     const modelOptions = [
+      "openai/gpt-5-mini",
       "deepseek/deepseek-r1-distill-llama-70b:free",
       "openai/gpt-3.5-turbo",
       "anthropic/claude-instant-v1"
