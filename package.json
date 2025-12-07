@@ -70,7 +70,7 @@
     "mongodb": "latest",
     "mongodb-client-encryption": "latest",
     "nanoid": "^5.1.6",
-    "next": "latest",
+    "next": "16.0.7",
     "next-auth": "latest",
     "next-themes": "latest",
     "openai": "latest",
